@@ -56,7 +56,7 @@ Nonlinear relationships between covariates and a response variable of interest a
 \begin{tabular*}{\linewidth}{| p{0.25\linewidth} | p{0.7\linewidth} |}
 \hline
 Subject & Livestock farming systems \\ \hline
-Specific subject area & Todo \\ \hline
+Specific subject area & Quantitative analyis of animal performance, growth, and modelling \\ \hline
 Type of data & Table, graph, code \\ \hline
 How data were acquired & Lactation curve: unstated in original source.
 
