@@ -88,8 +88,11 @@ Data source location & Lactation curve: unknown.
 Pig growth data: Data from two farms were reported in the original study: A commercial farm in Gronau, Germany, and the experimental farm of the Department of Animal and Veterinary Sciences, Aarhus University, Viborg, Denmark.
 
 Quail growth experiment: Finland \\ \hline
-Data accessibility & Repository name: Zenodo Data identification number:
-Direct URL to data: \\ \hline
+Data accessibility & Repository name: Zenodo
+
+Data identification number: 10.5281/zenodo.15777270
+
+Direct URL to data: https://doi.org/10.5281/zenodo.15777270 \\ \hline
 \end{tabular*}
 \end{threeparttable}
 
