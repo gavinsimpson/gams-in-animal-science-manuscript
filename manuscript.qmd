@@ -56,7 +56,7 @@ Nonlinear relationships between covariates and a response variable of interest a
 \begin{tabular*}{\linewidth}{| p{0.25\linewidth} | p{0.7\linewidth} |}
 \hline
 Subject & Livestock farming systems \\ \hline
-Specific subject area & Quantitative analyis of animal performance, growth, and modelling \\ \hline
+Specific subject area & Quantitative analysis of animal performance, growth, and modelling \\ \hline
 Type of data & Table, graph, code \\ \hline
 How data were acquired & Lactation curve: unstated in original source.
 
@@ -428,7 +428,7 @@ For further details on the different approaches used in the models described abo
 
 In the third example, I demonstrate how to fit GAMs in the context of a designed experiment to obtain estimated treatment effects.
 
-The data [Sarraude2020-cw] are from an experiment into the short- and long-term effects on quail of elevated exposure to different types of maternal thyroid hormone in Japanese quail, *Coturnix japonica* [@Sarraude2020-fu]. Briefly, the yolks of $n = \text{57}$ eggs were experimentally manipulated by injection with the prohormone, T~4~, its active metabolite, T~3~, or both T~4~ and T~3~ (T~3~T~4~), or a saline solution that acted as a control (CO). Body mass was initially measured 12 hours after hatching. Between days 3--15, body mass was  recorded every three days, then, between days 15--78, once per week using a digital balance.
+The data [@Sarraude2020-cw] are from an experiment into the short- and long-term effects on quail of elevated exposure to different types of maternal thyroid hormone in Japanese quail, *Coturnix japonica* [@Sarraude2020-fu]. Briefly, the yolks of $n = \text{57}$ eggs were experimentally manipulated by injection with the prohormone, T~4~, its active metabolite, T~3~, or both T~4~ and T~3~ (T~3~T~4~), or a saline solution that acted as a control (CO). Body mass was initially measured 12 hours after hatching. Between days 3--15, body mass was  recorded every three days, then, between days 15--78, once per week using a digital balance.
 
 The quail weight data were provisionally assumed to be conditionally gamma distributed. Despite this being a reasonable working assumption, model diagnostics identified deviations from this assumption, and instead the data were modelled as being conditionally Tweedie distributed. The Tweedie family of distributions contains the Poisson (power, $p = 1$) and gamma distributions ($p = 2$) as special cases, and is more flexible than gamma, and allows for a range of mean-variance relationships through the power parameter, $p$, of the distribution. In the Tweedie GAMs that were fitted, the power parameter $p$ was allowed to vary between 1--2 and was estimated as an additional model constant term. Models fitted were:
 \begin{linenomath*}
