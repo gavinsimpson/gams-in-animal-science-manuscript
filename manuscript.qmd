@@ -1432,6 +1432,8 @@ q_growth_plt <- q_growth |>
 ```{r}
 #| label: quail-model-fits
 #| cache: true
+#| message: false
+#| warning: false
 # bam() fits
 use_discrete <- TRUE
 quail_b1 <- bam(
