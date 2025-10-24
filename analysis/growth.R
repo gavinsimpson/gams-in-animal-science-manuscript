@@ -1,73 +1,25 @@
-# Analyse pig growth data from Mona
-
-# 1. be sure to cite the two papers
-# 2. only a small subset can be made open, so use 1 pen's worth of pigs
+# Analyse pig growth data
 
 # packages
-library("tictoc")
-library("ggforce")
+#library("tictoc")
+#library("ggforce")
 library("readr")
-library("lubridate")
-library("janitor")
+#library("lubridate")
+#library("janitor")
 library("mgcv")
 library("dplyr")
 library("ggplot2")
 library("mgcv")
 library("gratia")
+library("ggdist")
+library("patchwork")
 
-# note data are in a Danish CSV format
-base_fn <- "/Users/gavin/work/data/animal-science/"
-fn <- paste0(base_fn, "pig-growth-automated-camera-mona/aggregatedWeights-2.csv")
-
-pw_raw <- read_csv2(
-    fn,
-    col_types = "cDcdc",
-    locale = locale()
-  ) |>
-  janitor::clean_names() |>
-  mutate(
-    weight_estimate = as.numeric(weight_estimate)
-  )
-
-pw_raw |>
-ggplot(
-  aes(
-    x = date,
-    y = weight_estimate,
-    group = id
-  )
-) +
-geom_line() +
-facet_wrap(~ pen)
-
-# pen 803
-
-## lookup for id
-pw_lookup <- pw_raw |>
-  filter(pen == "803") |>
-  distinct(id) |>
-  mutate(
-    animal = row_number()
-  )
-
-pw_data <- pw_raw |>
-  filter(pen == "803") |>
-  mutate(
-    day_of_year = yday(date)
-  ) |>
-  left_join(
-    pw_lookup, by = join_by(id == id)
-  ) |>
-  select(-id) |>
+pw <- read_csv("data/pig-weight-data.csv") |>
   mutate(
     animal = factor(animal)
   )
 
-write_csv(pw_data |> select(-pen), file = "data/pig-weight-data.csv")
-
-read_csv("data/pig-weight-data.csv")
-
-pw_data |>
+pw |>
 ggplot(
   aes(
     x = date,
@@ -78,52 +30,52 @@ ggplot(
 geom_line()
 
 
-ctrl <- gam.control(nthreads = 6, trace = TRUE)
+ctrl <- gam.control(nthreads = 8, trace = TRUE)
 
 m1 <- gam(
   weight_estimate ~
     animal +
     s(day_of_year, by = animal),
-    family = Gamma(link = "log"),
-    data = pw_data,
-    method = "REML",
-    control = ctrl
-  )
+  family = Gamma(link = "log"),
+  data = pw,
+  method = "REML",
+  control = ctrl
+)
 
 m2 <- gam(
   weight_estimate ~
     s(day_of_year) +
     s(day_of_year, animal, bs = "sz"),
-    family = Gamma(link = "log"),
-    data = pw_data,
-    method = "REML",
-    control = ctrl
+  family = Gamma(link = "log"),
+  data = pw,
+  method = "REML",
+  control = ctrl
 )
 
 m3 <- gam(
   weight_estimate ~
     s(day_of_year, animal, bs = "fs"),
-    family = Gamma(link = "log"),
-    data = pw_data,
-    method = "REML",
-    control = ctrl
+  family = Gamma(link = "log"),
+  data = pw,
+  method = "REML",
+  control = ctrl
 )
 
 m4 <- gam(
   weight_estimate ~
     s(day_of_year) +
     s(day_of_year, animal, bs = "fs"),
-    family = Gamma(link = "log"),
-    data = pw_data,
-    method = "REML",
-    control = ctrl
+  family = Gamma(link = "log"),
+  data = pw,
+  method = "REML",
+  control = ctrl
 )
 
 AIC(m1, m2, m3, m4)
 
 appraise(m2, method = "simulate")
 
-ds <- pw_data |>
+ds <- pw |>
   select(animal, date) |>
   data_slice(
     animal = evenly(animal),
@@ -147,7 +99,7 @@ fv_m2 |>
     )
   ) +
   geom_point(
-    data = pw_data,
+    data = pw,
     aes(x = date, y = weight_estimate),
     size = 0.8,
     colour = "#56B4E9"
@@ -181,71 +133,51 @@ fv_m2 |>
     y = "Weight (kg)"
   )
 
-
-## location scale model
-pw_data <- pw_data |>
-  mutate(
-    rt_rt_weight_count = weight_count^(1/4)
-  )
-
-tic()
-m2_lss <- gam(
-  list(
-    weight_estimate ~
-      s(day_of_year) +
-      s(day_of_year, animal, bs = "sz"),
-    ~ s(animal, bs = "re") +
-      s(rt_rt_weight_count)
-  ),
-  family = gammals(),
-  data = pw_data,
-  method = "REML",
-  control = ctrl
-)
-toc()
-
-summary(m2_lss)
-AIC(m2, m2_lss)
-draw(m2_lss)
-
-ds_lss <- pw_data |>
-  select(animal, date, weight_count) |>
+# estimates of growth rate on November 15th, 2021
+nov15_ds <- m2 |>
   data_slice(
-    animal = evenly(animal),
-    date = evenly(date, by = 1) |> as.Date(),
-    weight_count = median(weight_count)
-  ) |>
-  mutate(
-    day_of_year = yday(date),
-    rt_rt_weight_count = weight_count^(1/4),
-    .row = row_number()
+    day_of_year = format(as.Date("2021-11-15"), "%j") |> as.numeric(),
+    animal = evenly(animal)
   )
 
-fv_m2_lss <- m2_lss |>
-  fitted_values(
-    data = ds_lss
-  ) |>
-  filter(.parameter == "location") |>
-  left_join(
-    ds_lss,
-    by = join_by(.row == .row)
+nov15_deriv <- m2 |>
+  response_derivatives(
+    data = nov15_ds,
+    n_sim = 10000,
+    eps = 1,
+    type = "central",
+    focal = "day_of_year"
   )
 
-fv_m2_lss |>
+nov15_plt1 <- nov15_deriv |>
   ggplot(
-    aes(
-      x = date,
-      y = .fitted,
-      group = animal
-    )
+    aes(x = animal, y = .derivative)
   ) +
-  geom_ribbon(
-    aes(ymin = .lower_ci, ymax = .upper_ci),
-    alpha = 0.2
+  geom_pointrange(
+    aes(ymin = .lower_ci, ymax = .upper_ci)
   ) +
-  geom_line() +
-  facet_wrap(~ animal) +
-  geom_point(
-    data = pw_data,
-    aes(x = date, y = weight_estimate)
+  labs(
+    x = "Pig", y = expression(Growth ~ rate ~ (day^{-1}))
   )
+
+pigs_deriv <- m2 |>
+  derivative_samples(
+    data = nov15_ds |> filter(animal %in% c("2", "13", "17")),
+    n_sim = 10000,
+    eps = 1,
+    type = "central",
+    focal = "day_of_year"
+  )
+
+nov15_plt2 <- pigs_deriv |>
+  ggplot(
+    aes(x = animal, y = .derivative)
+  ) +
+  stat_halfeye() +
+  labs(
+    x = "Pig", y = expression(Growth ~ rate ~ (day^{-1}))
+  )
+
+nov15_plt1 + nov15_plt2 +
+  plot_layout(ncol = 2, widths = c(0.5, 0.5)) +
+  plot_annotation(tag_levels = "a", tag_suffix = ")")
