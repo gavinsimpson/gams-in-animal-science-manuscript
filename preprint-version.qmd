@@ -1,32 +1,31 @@
 ---
-title: "Method: Using generalized additive models in the animal sciences"
+title: "Method: Using generalized additive models in the livestock animal sciences"
 authors:
   - name: G. L. Simpson
     id: gls
     orcid: 0000-0002-9084-8413
     email: gavin@anivet.au.dk
-    affiliations: 
+    affiliations:
       - name: Aarhus University
         department: Department of Animal and Veterinary Sciences
         address: Blichers Allé 20
         city: Tjele
         postal-code: 8830
         country: Denmark
-abstract: > 
-  Nonlinear relationships between covariates and a response variable of interest are frequently encountered in animal science research. Within statistical models, these nonlinear effects have, traditionally, been handled using a range of approaches, including transformation of the response, parametric nonlinear models based on theory or phenomenological grounds (e.g., lactation curves), or through fixed spline or polynomial terms. If it is desirable to learn the shape of the relationship from the data directly, then generalized additive models (GAMs) are an excellent alternative to these traditional approaches. GAMs extend the generalized linear model such that the linear predictor includes one or more smooth functions, parameterised using penalised splines. A wiggliness penalty on each function is used to avoid over fitting while estimating the parameters of the spline basis functions to maximise fit to the data without producing an overly complex function. Modern GAMs include automatic smoothness selection methods to find an optimal balance between fit and complexity of the estimated functions. Because GAMs learn the shapes of functions from the data, the user can avoid forcing a particular model to their data. Here, I provide a brief description of GAMs and visually illustrate how they work. I then demonstrate the utility of GAMs on three example data sets of increasing complexity, to show i) how learning from data can produce a better fit to data than that of parametric models, ii) how hierarchical GAMs can be used to estimate growth data from multiple animals in a single model, and iii) how hierarchical GAMs can be used for formal statistical inference in a designed experiment of the effects of exposure to maternal hormones on subsequent growth in Japanese quail. The examples are supported by R code that demonstrates how to fit each of the models considered, and reproduces the results of the statistical analyses reported here. Ultimately, I shown that GAMs are a modern, flexible, and highly usable statistical model that is amenable to many research problems in animal science, and deserve a place in the statistical toolbox.
+abstract: >
+  Nonlinear relationships between covariates and a response variable of interest are frequently encountered in animal science research. Within statistical models, these nonlinear effects have, traditionally, been handled using a range of approaches, including transformation of the response, parametric nonlinear models based on theory or phenomenological grounds (e.g., lactation curves), or through fixed degree spline or polynomial terms. If it is desirable to learn the shape of the relationship of one or more covariates and a response, then generalized additive models (GAMs) are an excellent alternative to these traditional approaches. GAMs extend the generalized linear model such that the linear predictor includes one or more smooth functions, parameterised using penalised splines. A wiggliness penalty on each function is used to avoid over fitting while estimating the parameters of the spline basis functions to maximise fit to the data. Modern GAMs include automatic smoothness selection methods to find an optimal balance between fit and complexity of the estimated functions. Because GAMs learn the shapes of functions from the data, the user can avoid forcing a particular model to their data. Here, I provide a brief description of GAMs and visually illustrate how they work. I then demonstrate the utility of GAMs on three example data sets of increasing complexity, to show i) how learning from data can produce a better fit to data than that of parametric models, ii) how hierarchical GAMs can be used to estimate growth data from multiple animals in a single model, and iii) how hierarchical GAMs can be used for formal statistical inference in a designed experiment of the effects of exposure to maternal hormones on subsequent growth in Japanese quail. In each case I show how the fitted model can be used to estimate biologically-motivated values (e.g., persistence of the lactation curve). The examples are supported by R code that demonstrates how to fit each of the models considered, and reproduces the results of the statistical analyses reported here. Ultimately, I show that GAMs are a modern, flexible, and highly usable statistical model that is amenable to many research problems in animal science.
 keywords:
   - "Generalized additive model"
-  - "penalised spline"
+  - "Penalised spline"
   - "Hierarchical model"
   - "Conditional effects"
   - "Basis function"
 license: "CC BY"
 format:
   elsevier-pdf:
-    fig-pos: "t"
-    tbl-pos: "t"
+    fig-pos: "t!"
     mathspec: true
-    keep-tex: true
+    keep-tex: false
     include-in-header: 
       - preprint-preamble.tex
     number-sections: false
@@ -36,9 +35,10 @@ format:
       model: 3p
       layout: onecolumn
       cite-style: authoryear
+    pdf-engine: xelatex
 execute:
   echo: false
-bibliography: references.bib
+bibliography: preprint-version.bib
 csl: elsarticle.cls
 crossref:
   fig-title: "Fig."
@@ -46,12 +46,11 @@ crossref:
 
 # Implications
 
-Nonlinear relationships between covariates and a response variable of interest are frequently encountered in animal science research. Generalized additive models and automatic smoothness selection via penalised splines provide an attractive, flexible, data-driven statistical model that is capable of estimating these relationships. I provide a description of the generalized additive model and demonstrate its use on three typical data examples; i) a lactation curve, ii) growth curves in commercial pigs, and iii) a experiment on the effects of maternal hormones on growth rates in Japanese quail.
-
-\newpage
+Nonlinear relationships between covariates and a response variable of interest are frequently encountered in animal science research. Generalized additive models with automatic smoothness selection via penalised splines provide an attractive, flexible, data-driven statistical model that is capable of estimating these relationships. I provide a description of the generalized additive model and demonstrate its use on three typical data examples; i) a lactation curve from a dairy cow, ii) growth curves in commercial pigs, and iii) an experiment on the effects of maternal hormones on growth rates in Japanese quail.
 
 # Specification table
 
+```{=latex}
 \SetSinglespace{1.0}
 \singlespacing
 \begin{threeparttable}
@@ -102,13 +101,15 @@ Direct URL to data: https://doi.org/10.5281/zenodo.15777270 \\ \hline
 
 \SetSinglespace{1.0}
 \onehalfspacing
+```
+
 
 ```{r}
 #| label: setup
 #| results: false
 #| message: false
 pkgs <- c(
-  "broom",
+  "broom", "nlstools", "ggdist", "tinytable",
   "readxl", "forcats", "readr", "mgcv", "gratia", "ggplot2", "dplyr", "tibble",
   "patchwork", "lubridate", "ggokabeito", "marginaleffects"
 )
@@ -118,6 +119,7 @@ res <- vapply(
 )
 
 theme_set(theme_bw())
+options(tinytable_latex_placement = "tb")
 ```
 
 ```{r}
@@ -181,9 +183,10 @@ wiggliness_plot <- function(scaling, eqn_size = 3) {
     guides(colour = "none") +
     annotate(
       "text", x = 0.5, y = 9, hjust = 0,
-      label = bquote(
-        integral(italic(f) * "''" * (x)^2 ~ dx == .(bSb), x[1], x[n])
+      label = paste0(
+        "integral(italic(f) * \"''\" * (x)^2 ~ dx == ", bSb, ", x[1], x[n])"
       ),
+      parse = TRUE,
       size = eqn_size
     ) +
     lims(x = c(0, 1), y = c(-2.5, 10.5))
@@ -192,15 +195,19 @@ wiggliness_plot <- function(scaling, eqn_size = 3) {
 
 # Introduction
 
-Many research questions in the animal sciences involve nonlinear relationships between covariates and a response variable of interest. A classic example, with a long history of statistically-based and mathematically-based research, is the plethora of models that have been described for the estimation of lactation curves from test day data or automatic milking machines [e.g., @Macciotta2011-ch]. Another, is the estimation of growth curves in the context of breeding and genetics [e.g., @White1999-jg]. Despite the frequency with which such nonlinear relationships are encountered, surprisingly little use of generalized additive models (GAMs) has been seen in animal science to date. Notable exceptions include @Hirst2002-eh, @Yano2014-cn, @Huang2023-rs, and @Benni2020-rc
+Many research questions in the animal sciences involve the estimation of nonlinear relationships between covariates and a response variable of interest. A classic example, with a long history of statistically-based and mathematically-based research, is the plethora of models that have been described for the estimation of lactation curves from test day data or automatic milking machines [e.g., @Macciotta2011-ch]. Another, is the estimation of growth curves in the context of breeding and genetics [e.g., @White1999-jg].
 
-In part, this lack of uptake reflects a traditional statistics workflow grounded in mixed effects modelling. Statistical training rarely includes more advanced models like GAMs, and GAMs are sufficiently different an approach that many researchers may be wary of using them because they are unfamiliar with the nomenclature used to describe the models or the software used to fit them. Where GAMs have been used in animal science, best practice is often not followed, for example in the choice of smoothness selection method, or failing to adequately specify the conditional distribution of the response or transform the response to better meet the distributional assumptions of a Gaussian model [e.g. @van-Lingen2023-sd].
+Generalized additive models [GAMs, @Hastie1990-bx; @Wood2017-qi] are a powerful and flexible class of regression models, which extend the generalized linear model (GLM) to allow the effects of covariates on the response to be modelled using smooth, nonlinear functions. Despite the frequency with which such nonlinear relationships are encountered, surprisingly little use of GAMs has been seen in animal science to date. Notable exceptions include @Hirst2002-eh, @Yano2014-cn, @Benni2020-rc, and @Huang2023-rs. The particular advantage of GAMs over parametric models is that because GAMs do not force a particular model on to the data thet can adapt to the data themselves, providing a substantially improved estimation of covariate effects and thence the biological interpretations derived from these.
 
-More attention has been paid to the use of splines, frequently in comparisons against some form of polynomial-based model, especially Legendre polynomials [e.g., @Nagel-Alne2014-bg; @Silvestre2006-uw; @Macciotta2010-kt; @Brito2017-bx]. There, the focus has largely been on the choice of the number of knots in the spline basis expansion and on the placement of those knots. Modern GAMs largely make such choices redundant; with penalised splines, a wiggliness penalty is used to avoid over-fitting, and low-rank eigen bases, such as the low-rank thin plate regression spline basis of @Wood2003-qy avoid the knot-placement issue for most problems.
+In part, the lack of uptake of GAMs in animal science reflects a traditional statistics workflow grounded in linear mixed effects modelling. Statistical training rarely includes more advanced models like GAMs, and GAMs are sufficiently different an approach that many researchers may be wary of using them because they are unfamiliar with the nomenclature used to describe the models or the software used to fit them. Where GAMs have been used in animal science, best practice is often not followed, for example in the choice of smoothness selection method, or failing to correctly specify the conditional distribution of the response [e.g. @van-Lingen2023-sd].
 
-A guide to the use of GAMs in the animal science setting, written with users in mind, is needed to raise awareness of the utility of these flexible models and to promote best practice in fitting GAMs. Below, I describe GAMs and demonstrate visually how they work. Then I apply GAMs to three different examples representing typical data encountered in animal science. The examples below are supported by tutorials containing the computer code needed to fit the models in the R statistical software [@Rcore], which are available along side the source code for the manuscript itself.
+More attention has been paid to the use of spline terms within linear models, frequently in comparisons against some form of polynomial-based model, especially Legendre polynomials [e.g., @Nagel-Alne2014-bg; @Silvestre2006-uw; @Macciotta2010-kt; @Brito2017-bx]. There, the focus has largely been on choosing the number of knots in the spline basis expansion and on the placement of those knots. Modern GAMs largely make such choices redundant; with penalised splines, a wiggliness penalty is used to avoid over-fitting, and low-rank eigen bases, such as the low-rank thin plate regression spline basis of @Wood2003-qy, avoid the knot-placement issue for most problems.
+
+A guide to the use of GAMs in the animal science setting, written with users in mind, is needed to raise awareness of the utility of these flexible models and to promote best practice in their fitting. Below, I describe GAMs and demonstrate visually how they work. Then I apply GAMs to three different examples that scale in complexity and which represent typical data problems encountered in animal science. As well as showing the predictive ability of GAMs, the examples demonstrate how the fitted models can be used to provide estimates that are biologically relevant, such as treatment differences, estimates of growth rates, or persistency in milk production. The examples are supported by tutorials that contain the computer code needed to fit the models in the R statistical software [@Rcore], which are available alongside the source code for the manuscript itself.
 
 # Materials and methods
+
+I begin with an introduction to GAMs and how they work. This section is necessarily general to allow for a brief summary of the main points and illustration of how penalised splines work. In the subsequent section describing the three worked examples I provide more case-specific descriptions of the models that are fitted to data.
 
 ## Generalized additive models
 
@@ -210,28 +217,30 @@ y_i &\sim \mathcal{D}(\mu_i, \phi) \\
 \mathbb{E}(y_i) &= \mu_i \\
 g(\mu_i) &= \mathbf{X}_i \boldsymbol{\gamma} + \sum_j f_j(\bullet), \; i = 1, \dots, n; \; j = 1, \dots, J
 \end{align*}
-where $y_i$ is a univariate response variable of interest that is modelled on the scale of a link function $g()$, $\mathcal{D}(\mu_i, \phi)$ is a distribution, typically from, though not limited to, the exponential family of distributions, with mean $\mu_i$ and scale parameter $\phi$. $\mathbf{X}_i$ is the $i$th row of the model matrix of any parametric terms (including the model intercept or constant term), and $\boldsymbol{\gamma}$ the associated regression parameters. The $f_j$ are $J$ smooth functions of one or more covariates; I use $\bullet$ as a placeholder for this definition, but in the simplest case of a smooth of a single continuous covariate we have $f_j(x_{ij})$, where $x_{ij}$ is a univariate covariate.
+where $y_i$ is the $i$th observation of a univariate response variable of interest that is modelled as a function of covariates on the scale of a link function $g()$. $\mathcal{D}(\mu_i, \phi)$ is a distribution, typically from, though not limited to, the exponential family of distributions, with mean $\mu_i$ and scale parameter $\phi$. $\mathbf{X}_i$ is the $i$th row of the model matrix of any parametric terms (including the model intercept or constant term), and $\boldsymbol{\gamma}$ the associated regression parameters. The $f_j$ are $J$ smooth functions of one or more covariates (independent variables, e.g. days in milk); I use $\bullet$ as a placeholder for covariate(s), but in the simplest case of a smooth of a single continuous covariate we have $f_j(x_{ij})$, a univariate smooth where $x_{ij}$ is the $i$th observation of the $j$th covariate. For a smooth of two or more continuous variables, a tensor product smooth representing smooth main effects and smooth interaction, the linear predictor would include $f(x_{i1}, x_{i2})$, for example.
 
-In the remainder of this section, I aim to present *just enough* detail about GAMs to afford the reader a general understanding of what is involved in estimating such a model so that they can appreciate how GAMs work, and how we aim to avoid overfitting or having to choose how complex each smooth function should be. The original approach [@Hastie1990-bx] for fitting GAMs, known as *backfitting*, required the analyst to specify how many degrees of freedom each function in the model should take *a priori*, which was viewed by many as being too subjective for more than exploratory analysis. With modern automatic smoothness selection methods, this problem has largely been resolved, through the use of penalised splines and fast algorithms for smoothness selection.
+In the remainder of this section, I aim to present *just enough* detail about GAMs to afford the reader a general understanding of what is involved in estimating such a model so that they can appreciate how GAMs work, and how we aim to avoid overfitting or having to choose how complex each smooth function should be. The original approach [@Hastie1990-bx] for fitting GAMs, known as *backfitting*, required the analyst to specify how many degrees of freedom each function in the model should take *a priori*; this was viewed by many as being too subjective for more than exploratory analysis. With modern automatic smoothness selection methods this problem has largely been resolved through the use of penalised splines and fast algorithms for smoothness selection [e.g., @Wood2011-kn; @Wood2016-fx].
 
 ### Penalised splines {.unnumbered}
 
 In a GAM, the smooth functions $f_j()$ are typically represented in the model using splines, although other functions fit into this framework, most notably iid Gaussian random effects. A spline is composed of $K$ basis functions, $b_k()$, and their associated coefficients, $\beta_k$
-$$
-f_j(x_{ij}) = \sum_{k = 1}^{K} \beta_kb_k(x_{ij}) .
-$$
-For identifiability reasons, the basis is subject to a sum-to-zero constraint to remove the constant function from the span of the basis, which allows a separate constant term or intercept in the model; this is desirable if we also want to include categorical (factor) terms in the model for example. [@fig-how-splines-work]a shows a B spline basis ($K$ = 16) for a covariate $x$ after the absorbing the sum-to-zero constraint into the basis.
+\begin{equation}
+f_j(x_{ij}) = \sum_{k = 1}^{K} \beta_kb_k(x_{ij})
+\end{equation}
+where the basis functions $b_k()$ could be piecewise cubic polynomials for a cubic regression spline, but more generally are just the component functions of a spline (e.g. B splines, thin plate splines). For identifiability reasons, the basis is subject to a sum-to-zero constraint to remove the constant function from the span of the basis, which allows inclusion of a separate constant term or intercept in the model; this is desirable if we also want to include categorical (factor) terms in the model for example.
 
-Fitting a spline then involves finding estimates for the coefficients of basis functions, $\beta_k$. These coefficients weight the individual basis functions as shown in [@fig-how-splines-work]b. To find the value of the fitted spline at each value of $x$, we sum up the values of the weighted basis functions evaluated at each value of $x$. This yields the light blue curve in [@fig-how-splines-work]b. The coefficients for the basis functions, $\beta_k$, are determined by forcing the fitted function to go as close to the data as possible. As shown in [@fig-how-splines-work]b, we largely recover the true function from which the data were simulated.
+[@fig-how-splines-work]a shows a cubic B spline ($K$ = 10 basis functions) fitted to simulated data. Fitting a spline involves finding estimates for the coefficients of basis functions, $\beta_k$. These coefficients weight the individual basis functions as shown in [@fig-how-splines-work]a. To find the value of the fitted spline at each value of $x$, we sum up the values of the weighted basis functions evaluated at each value of $x$. This yields the light blue curve in [@fig-how-splines-work]a. The coefficients for the basis functions, $\beta_k$, are determined by forcing the fitted function to go as close to the data as possible. As shown in [@fig-how-splines-work]a, we largely recover the true function from which the data were simulated. The B spline basis functions for a covariate $x$ after the absorbing the sum-to-zero constraint into the basis are shown in [@fig-how-splines-work]b.
 
-Expanding $\mathbf{x}_{j}$ into many basis functions in this way means we must be cognizant of the risks of over fitting the sample of data we have to hand. Taken to the extreme, we could obtain an arbitrarily close fit to the data by using as many basis functions as there are data (i.e., $K = n$), but all this would achieve in practice is the replacement of the data with a set of coefficients.
+Expanding $\mathbf{x}_{j}$ into many basis functions in this way means we must be cognizant of the risk of over fitting our sample of data. Taken to the extreme, we could obtain an arbitrarily close fit to the data by using as many basis functions as there are data (i.e., $K = n$), but all this would achieve in practice is the replacement of the data with a set of coefficients.
 
 ```{r}
 #| label: fig-how-splines-work
-#| fig-cap: Illustration of how penalised splines work. A spline basis expansion (a) and associated penalty matrix $\mathbf{S}$ (c) are formed for a covariate $x$. Model fitting involves finding estimates for the coefficients of the basis functions that make the fitted spline (thick, blue curve) go as close to the data (black points) as possible, without over fitting (b). In (a) and (b) the basis functions are shown as thin coloured lines and are from a B spline basis. The sum-to-zero identifiability constraint needed so that an intercept can be included in the model has been absorbed into the basis shown. The dashed horizontal line in (b) is the estimated value of the intercept. The penalty matrix (c) encodes how wiggly each basis function is in terms of its second derivative.
+#| fig-cap: Illustration of how penalised splines work. A spline basis expansion (a) and associated penalty matrix $\mathbf{S}$ (c) are formed for a covariate $x$. Model fitting involves finding estimates for the coefficients of the basis functions that make the fitted spline (thick, blue curve) go as close to the data (black points) as possible, without over fitting (a). In (a) and (b) the basis functions are shown as thin coloured lines and are from a cubic B spline basis. The thin black line in (a) is the true function from which the data were simulated. The dashed horizontal line in (a) is the estimated value of the intercept. The sum-to-zero identifiability constraint needed so that an intercept can be included in the model has been absorbed into the basis shown in (a) and (b). The penalty matrix (c) encodes how wiggly each basis function is in terms of its second derivative. Panels (d) -- (e) are as above but for a low-rank thin plate spline basis.
 #| fig-width: 10
-#| fig-height: 3
-# B splines
+#| fig-height: 8
+#| out-width: 90%
+#| fig-align: center
+# B splines & TPRS
 # simulate data
 sim_d <- tibble(x = withr::with_seed(1234, runif(200))) |>
   mutate(
@@ -244,23 +253,36 @@ sim_evenly <- tibble(x = seq(0, 1, length = 200)) |>
     f = gw_f2(x),
     y = withr::with_seed(1234, rnorm(200, mean = f, sd = 1))
   )
-
-sim_bs <- gam(
-  y ~ s(x, bs = "bs", k = 16),
+# number of basis functions
+K <- 10
+m_bs <- gam(
+  y ~ s(x, bs = "bs", k = K),
+  data = sim_d,
+  method = "REML"
+)
+m_tprs <- gam(
+  y ~ s(x, bs = "tp", k = K),
   data = sim_d,
   method = "REML"
 )
 
 bf_raw_bs <- basis(
-  s(x, bs = "bs", k = 16),
+  s(x, bs = "bs", k = K),
+  data = sim_d,
+  at = sim_evenly,
+  constraints = TRUE
+)
+bf_raw_tprs <- basis(
+  s(x, bs = "tp", k = K),
   data = sim_d,
   at = sim_evenly,
   constraints = TRUE
 )
 
-bf_bs <- basis(sim_bs, select = "s(x)", at = sim_bs)
+bf_bs <- basis(m_bs, select = "s(x)", at = sim_evenly)
+bf_tprs <- basis(m_tprs, select = "s(x)", at = sim_evenly)
 
-plt_lims <- lims(x = c(0, 1), y = c(-3.5, 11.5))
+plt_lims <- lims(x = c(0, 1), y = c(-12.5, 13.5))
 
 p_bs_raw <- bf_raw_bs |>
   mutate(.value = .value * 1) |>
@@ -280,7 +302,29 @@ p_bs_raw <- bf_raw_bs |>
   plt_lims +
   labs(title = NULL)
 
+p_tprs_raw <- bf_raw_tprs |>
+  mutate(.value = .value * 1) |>
+  draw() +
+  geom_point(
+    data = sim_d, aes(x = x, y = y),
+    alpha = 1,
+    inherit.aes = FALSE,
+    size = 0.5
+  ) +
+  geom_function(
+    fun = gw_f2,
+    aes(x = x),
+    data = bf_raw_tprs |> distinct(x, .keep_all = TRUE),
+    colour = "black", linewidth = 1.5, alpha = 0.3
+  ) +
+  plt_lims +
+  labs(title = NULL)
+
 p_only_bs <- bf_raw_bs |>
+  draw() +
+  labs(title = NULL)
+
+p_only_tprs <- bf_raw_tprs |>
   draw() +
   labs(title = NULL)
 
@@ -294,7 +338,7 @@ p_bs <- bf_bs |>
   ) +
   geom_line(
     data = data.frame(
-      y = rep(model_constant(sim_bs), 200),
+      y = rep(model_constant(m_bs), 200),
       x = sim_d$x
     ),
     aes(x = x, y = y, colour = NULL, group = NULL),
@@ -304,12 +348,48 @@ p_bs <- bf_bs |>
     fun = gw_f2,
     aes(x = x),
     data = bf_raw_bs |> distinct(x, .keep_all = TRUE),
-    colour = "black", linewidth = 1.5, alpha = 0.3
+    colour = "black", alpha = 0.5
   ) +
   geom_line(
     data = bf_bs |>
     group_by(x) |>
-    summarise(.spline = sum(.value) + model_constant(sim_bs)),
+    summarise(.spline = sum(.value) + model_constant(m_bs)),
+    aes(
+      x = x, y = .spline, colour = NULL, group = NULL
+    ),
+    colour = palette.colors()[3],
+    linewidth = 1.5,
+    alpha = 0.6
+  ) +
+  plt_lims +
+  labs(title = NULL)
+
+p_tprs <- bf_tprs |>
+  draw() +
+  geom_point(
+    data = sim_d, aes(x = x, y = y),
+    alpha = 1,
+    inherit.aes = FALSE,
+    size = 0.5
+  ) +
+  geom_line(
+    data = data.frame(
+      y = rep(model_constant(m_tprs), 200),
+      x = sim_d$x
+    ),
+    aes(x = x, y = y, colour = NULL, group = NULL),
+    linetype = "dashed"
+  ) +
+  geom_function(
+    fun = gw_f2,
+    aes(x = x),
+    data = bf_raw_tprs |> distinct(x, .keep_all = TRUE),
+    colour = "black", alpha = 0.5
+  ) +
+  geom_line(
+    data = bf_tprs |>
+    group_by(x) |>
+    summarise(.spline = sum(.value) + model_constant(m_tprs)),
     aes(
       x = x, y = .spline, colour = NULL, group = NULL
     ),
@@ -321,57 +401,78 @@ p_bs <- bf_bs |>
   labs(title = NULL)
 
 # plot the penalty S
-S_bs <- penalty(sim_bs, select = "s(x)")
+S_bs <- penalty(m_bs, select = "s(x)")
+S_tprs <- penalty(m_tprs, select = "s(x)")
 p_S_bs <- S_bs |>
   draw() +
   labs(title = NULL, caption = NULL) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+p_S_tprs <- S_tprs |>
+  draw() +
+  labs(title = NULL, caption = NULL) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# not decided yet if I want the raw, unweighted basis on the data and true
-# function plot (c)
-# p_only_bs + p_S_bs + p_bs_raw + p_bs + plot_layout(ncol = 2, nrow = 2) +
-#  plot_annotation(tag_levels = "a", tag_suffix = ")")
-# note I reordered the 1 row, 3 col version below
-p_only_bs + p_bs + p_S_bs + plot_layout(ncol = 3, nrow = 1) +
+design <- "
+AAAB
+AAAC
+DDDE
+DDDF
+"
+
+p_bs + p_only_bs + p_S_bs +
+  p_tprs + p_only_tprs + p_S_tprs +
+  plot_layout(design = design) +
   plot_annotation(tag_levels = "a", tag_suffix = ")")
 ```
 
-This raises the question of how many basis functions should be used? One option, if there are $n$ unique values of the covariate $x$, is to use $n$ basis functions, leading to a situation where our model would have as many coefficients as data. However, we do not gain anything by using $n$ basis functions from a statistical viewpoint. In practice we typically use $\mathcal{N} \ll n$ basis functions. Yet, even with just $\mathcal{N}$ basis functions, we face the very real situation that our model may overfit the data if $\mathcal{N}$ is too large. To address this, modern approaches to fitting GAMs use penalised splines.
+This raises the question of how many basis functions should be used? If there were $n$ unique (i.e., no duplicated values) values of the covariate $x$ in the data set, one option would be to use $n$ basis functions, leading to a situation where our model would have as many coefficients as unique data. We gain very little however by using $n$ basis functions from a statistical viewpoint. In practice, we typically use $\mathcal{N} \ll n$ basis functions. Yet, even with just $\mathcal{N}$ basis functions, we face the real possibility that our model may overfit the data if $\mathcal{N}$ is too large. To address this, modern approaches to fitting GAMs use penalised splines with automatic smoothness selection [e.g. @Eilers1996-ml; @Wood2011-kn; @Wood2016-fx].
 
-If our aim is to avoid overfitting, we need to penalise highly complex fitted functions, and hence need to define what we mean by "complex". A complex function would be one that "wiggles" about markedly as we move from low to high values of the covariate, $x$. Such wiggling around implies that the function has a high amount of curvature, which we measure using the second derivative of the fitted function. While there are other definitions for complexity that we use, this the typical measure used for splines in statistical models. Therefore, to measure the wiggliness of a fitted function we need to integrate, or sum up, the second derivative of the function $f$ over the range of $x$
+If our aim is to avoid overfitting, we need to penalise highly complex fitted functions, and hence need to define what we mean by "complex". A complex function would be one that "wiggles" about markedly as we move from low to high values of the covariate, $x$. Such wiggling around implies that the function has a high amount of curvature, which we measure using the second derivative of the fitted function. While there are other definitions for complexity that we can use, this is the typical measure used for penalized splines in statistical models. Therefore, to measure the wiggliness of a fitted function we need to integrate (sum up) the second derivative of the function $f$ over the range of $x$
 $$
 \int_{x} f^{\prime\prime}(x)^2 \, dx = \boldsymbol{\beta}^{\mathsf{T}} \mathbf{S} \boldsymbol{\beta}
 $$ {#eq-wiggliness}
-where $f^{\prime\prime}$ indicates the second derivative of $f$, and note that we are integrating the *square* of the second derivative because we need to allow for both negative and positive curvature as the function wiggles. Conveniently, we can compute this integral as a function of the model coefficients $\boldsymbol{\beta}$ as shown on the right hand side of [@eq-wiggliness]. $\mathbf{S}$ is a known penalty matrix, which encodes the complexity of the basis functions. The penalty matrix for the basis expansion shown in [@fig-how-splines-work]a is displayed in [@fig-how-splines-work]c.
+where $f^{\prime\prime}$ indicates the second derivative of $f$, and note that we are integrating the *square* of the second derivative because we need to allow for both negative and positive curvature as the function wiggles. Conveniently, we can compute this integral as a function of the model coefficients $\boldsymbol{\beta}$ as shown on the right hand side of [@eq-wiggliness]. $\mathbf{S}$ is a known penalty matrix, which encodes the complexity of the basis functions. The penalty matrix for the basis expansion shown in [@fig-how-splines-work]a is displayed in [@fig-how-splines-work]c. Typically, the software used to fit the GAM, such as the R package *mgcv* that is used here, will calculate $\mathbf{S}$ for each spline in the model.
 
-@fig-wiggliness shows three different estimated smooths for the simulated shown in @fig-how-splines-work and their wiggliness or integrated squared second derivative. Fitting a GAM requires us to balance the fit to the data *and* the complexity of the resulting model; we wish to avoid both over fitting the data ([@fig-wiggliness]a) and over smoothing ([@fig-wiggliness]c) the data. We want the fitted functions to be just "wiggly enough" to approximate the true, but unknown relationships ([@fig-wiggliness]b).
+@fig-wiggliness shows three different estimated smooths for the simulated data shown in @fig-how-splines-work, plus their wiggliness or integrated squared second derivative. Fitting a GAM requires us to balance the fit to the data *and* the complexity of the resulting model; we wish to avoid both over fitting the data ([@fig-wiggliness]a) and over smoothing ([@fig-wiggliness]c) the data. We want the fitted functions to be just "wiggly enough" to approximate the true, but unknown functions ([@fig-wiggliness]b).
 
 ```{r}
 #| label: fig-wiggliness
-#| fig-cap: Illustration of how the wiggliness penalty controls the resulting fit of a penalised spline. The weighted basis functions are shown as thin coloured lines. In each panel a penalised spline is shown by the solid black line, which has been fitted to the data points shown. The wiggliness value of the spline, the integrated squared derivative of the fitted spline over $x$ is given in the upper right of each panel. The spline in (a) is over fitted to the data, resulting in a very wiggly function with a large wiggliness value. The spline in (c) is over smoothed, resulting in a a simple fitted function with low wiggliness, but which does not fit the data well. The spline in (b) represents a balance between fit to the data and complexity of fitted function. The smoothing parameter for the spline, $\lambda$, is used as a tuning parameter in the model, which ultimately controls this balance between fit and complexity.
+#| fig-cap: Illustration of how the wiggliness penalty controls the resulting fit of a penalised spline. The weighted basis functions are shown as thin coloured lines. In each panel a penalised spline is shown by the solid black line, which has been fitted to the data points shown. The wiggliness value of the spline, the integrated squared derivative of the fitted spline over $x$ is given in the upper right of each panel. The spline in (a) is over fitted to the data, resulting in a very wiggly function with a large wiggliness value. The spline in (c) is over smoothed, resulting in a simple fitted function with low wiggliness, but which does not fit the data well. The spline in (b) represents a balance between fit to the data and complexity of fitted function. The smoothing parameter for the spline, $\lambda$, is used as a tuning parameter in the model, which ultimately controls this balance between fit and complexity.
 #| warning: false
 #| fig-width: 10
 #| fig-height: 3
+#| out-width: 90%
+#| fig-align: center
 plt_a <- wiggliness_plot(scaling = 0.0000005)
 plt_b <- wiggliness_plot(scaling = 0.00002)
 plt_c <- wiggliness_plot(scaling = 0.005)
 
-plt_a + plt_b + plt_c + 
+plt_a + plt_b + plt_c +
   plot_annotation(
     tag_levels = "a", tag_suffix = ")"
   )
 #
 ```
 
-We find estimates of the basis function coefficients, $\beta_k$, that make the fitted spline go as close to the data as possible; in practice, this is done by maximising the penalised log likelihood
+To that end, we find estimates of the basis function coefficients, $\beta_k$, that make the fitted spline go as close to the data as possible, without overfitting; in practice, this is done by maximising the penalised log likelihood
 \begin{equation*}
-\ell_p(\boldsymbol{\beta}) = \ell(\boldsymbol{\beta}) - \frac{1}{2 \phi} \sum_{j} \lambda_j \boldsymbol{\beta}_j^{\mathsf{T}} \mathbf{S}_j \boldsymbol{\beta}_j \; ,
+\ell_p(\boldsymbol{\beta}, \boldsymbol{\lambda}) = \ell(\boldsymbol{\beta}) - \frac{1}{2 \phi} \sum_{j} \lambda_j \boldsymbol{\beta}_j^{\mathsf{T}} \mathbf{S}_j \boldsymbol{\beta}_j \; ,
 \end{equation*}
-where $\ell_p(\boldsymbol{\beta})$ is the penalised log likelihood and $\ell(\boldsymbol{\beta})$ the log likelihood of the data, given the $\boldsymbol{\beta}$, and the remainder is the wiggliness penalty for the model. The log likelihood ($\ell(\boldsymbol{\beta})$) measures how well our model fits the data, while the wiggliness penalty $\boldsymbol{\beta}_j^{\mathsf{T}} \mathbf{S}_j \boldsymbol{\beta}_j$ measures how complex the model is. Note that any parametric coefficients, $\boldsymbol{\gamma}$, including the intercept have been absorbed into $\boldsymbol{\beta}$ for convenience. The $\lambda_j$ are known as the smoothing parameters of the model, and it is these smoothing parameters that actually control how much the wiggliness penalty affects the $\ell_p(\boldsymbol{\beta})$. We can think of the $\lambda_j$ as tuning or hyper-parameters of the model.
+where $\ell_p(\boldsymbol{\beta})$ is the penalised log likelihood and $\ell(\boldsymbol{\beta})$ the log likelihood of the data, given $\boldsymbol{\beta}$, and the remainder is the wiggliness penalty for the model. The log likelihood ($\ell(\boldsymbol{\beta})$) measures how well our model fits the data, while the wiggliness penalty $\boldsymbol{\beta}_j^{\mathsf{T}} \mathbf{S}_j \boldsymbol{\beta}_j$ measures how complex the model is. Note that any parametric coefficients, $\boldsymbol{\gamma}$, including the intercept have been absorbed into $\boldsymbol{\beta}$ for convenience. The $\lambda_j$ are known as the smoothing parameters of the model, and it is these smoothing parameters that actually control how much the wiggliness penalty affects the $\ell_p(\boldsymbol{\beta})$. We can think of the $\lambda_j$ as tuning or hyper-parameters of the model.
 
-As mentioned in the introduction, the knot placement problem can largely be averted through the use of a low rank thin plate regression spline basis [@Wood2003-qy]. The spline basis used in the above description was a B spline basis, and for that basis the knots were placed at evenly-spaced quantiles of the covariate. In general, the exact positioning of the knots is unimportant, so long as they are spread out over the range of the covariate. If we wish to avoid the knot placement altogether, we could replace the B spline basis with a low rank thin plate regression spline basis (TPRS). We start with a radial basis function at each unique value of the covariate. This full, rich basis is then transformed and truncated through an eigen decomposition to retain the $k$ eigenvectors with the smallest eigenvalues. The decomposition removes much of the excessive wiggliness that $n$ basis functions would provide, while retaining many of the good properties of the original basis [@Wood2003-qy]. The main downside of the TPRS basis is that it is computationally expensive to form the basis when setting up the model; for larger data problems, with many thousands of data, simpler bases such as the cubic regression spline or B spline may be preferred. In the *mgcv* software used here, the TPRS basis is the default basis used for univariate smooths [@Wood2025-zt, @Wood2011-kn].
+As mentioned in the introduction, the knot placement problem can largely be averted through the use of a low rank thin plate regression spline basis ([@fig-how-splines-work] panels d--f). The spline basis described previously was a cubic B spline basis, and for that basis the knots were placed at evenly-spaced *quantiles* of the covariate. In general, the exact positioning of the knots is unimportant, so long as they are spread out over the range of the covariate. If we wish to avoid the knot placement altogether, we could replace the B spline basis with a low rank thin plate regression spline basis  [TPRS, @Wood2003-qy]. We start with a basis function at each unique value of the covariate and then transform and truncate the entire basis with an eigen decomposition and retain the $K$ eigenvectors with the smallest eigenvalues as $K$ new basis functions. The decomposition removes much of the excessive wiggliness that $n$ basis functions would provide, while retaining many of the good properties of the original basis [@Wood2003-qy]. The main downside of the TPRS basis is that it is computationally expensive to form when setting up the model; for large data problems, with many thousands of data, simpler bases such as the cubic regression spline or B spline may be preferred. In the *mgcv* software used here, the TPRS basis is the default basis used for univariate smooths [@Wood2025-zt; @Wood2011-kn].
 
-The algorithms used to fit GAMs need to estimate the model coefficients, $\boldsymbol{\beta}$, and choose appropriate values of the smoothing parameters, $\lambda_j$. This process is known as smoothness selection, and there are several approaches to smoothness selection that can be taken. One is treat the problem as one of prediction, and choose $\lambda_j$ in such a way as to minimise the cross-validated prediction error of the model. In practice it would be computationally costly to actually cross-validate the model for fitting, so we approximate the prediction error by minimising the generalised cross validation (GCV) error, AIC, or similar measure. An alternative means of smoothness selection is to take a Bayesian view of the smoothing process [see @Miller2025-bd for an accessible introduction to this viewpoint]; in doing so, the $\boldsymbol{\beta}_j^{\mathsf{T}} \mathbf{S}_j \boldsymbol{\beta}_j$ should be viewed as multivariate normal priors on the $\boldsymbol{\beta}$. From this Bayesian view of smoothing, we find that the criterion we wish to minimise is that of a mixed effects model. Hence, we can think of the wiggly parts of the $f_j$ as being fancy random effects, while the smooth parts of the $f_j$ are fixed effects, and the $\lambda_j$ are inversely proportional to the random effect variances one would observe if the model were fitted as a mixed effects model. The Bayesian approach to smoothing can involve fully bayesian estimation using Markov chain Monte Carlo (MCMC) or simulation free estimation via the integrated nested Laplace approximation (INLA), or, using the equivalence of splines and random effects, we can take an empirical bayesian approach, which yields the posterior modes  of the $\boldsymbol{\beta}_j$, or the maximum a posteriori (MAP) estimates.
+The algorithms used to fit GAMs need to estimate the model coefficients, $\boldsymbol{\beta}$, and choose appropriate values of the smoothing parameters, $\lambda_j$. This process is known as smoothness selection, and there are several approaches to smoothness selection that can be taken. One is to treat the problem as one of prediction, and choose $\lambda_j$ in such a way as to minimise the cross-validated prediction error of the model. In practice it would be computationally costly to actually cross-validate the model for fitting, so we approximate the prediction error by minimising the generalised cross validation (GCV) error, AIC, or similar measure. An alternative means of smoothness selection is to take a Bayesian view of the smoothing process [see @Miller2025-bd for an accessible introduction to this viewpoint]; in doing so, the $\boldsymbol{\beta}_j^{\mathsf{T}} \mathbf{S}_j \boldsymbol{\beta}_j$ can be viewed as multivariate normal priors on the $\boldsymbol{\beta}$. From this Bayesian view of smoothing, we find that the criterion we wish to minimise is that of a mixed effects model. Hence, we can think of the wiggly parts of the $f_j$ as being fancy random effects, while the smooth parts of the $f_j$ are fixed effects, and the $\lambda_j$ are inversely proportional to the random effect variances one would observe if the model were fitted as a mixed effects model. The Bayesian approach to smoothing can involve fully Bayesian estimation using Markov chain Monte Carlo (MCMC) or simulation free estimation via the integrated nested Laplace approximation (INLA), or, using the equivalence of splines and random effects, we can take an empirical Bayesian approach, which yields the posterior modes  of the $\boldsymbol{\beta}_j$, or the maximum a posteriori (MAP) estimates.
+
+### Why not polynomials?
+
+At this stage, it is not unreasonable to question whether we need anything so complicated as a penalized spline; would polynomial terms not work just as well? A polynomial model includes powers of $\mathbf{x}$ in the linear predictor, e.g., $\eta_i = \beta_0 + \beta_1 x_i + \beta_2 x_i^2 + \beta_3 x_i^3 + \cdots + \beta_p x_i^p$. This is also a basis expansion of $\mathbf{x}$, where the basis functions are the zeroth, first, second, third etc. powers of $\mathbf{x}$; $b_1(x_i) = x_i^0 = 1$, $b_2(x_i) = x_i^1 = x_i$, $b_3(x_i) = x_i^2$, $b_4(x_i) = x_i^3$, etc. From the point of view of estimating an unknown function, using this polynomial basis expansion poses two significant problems.
+
+First, while Taylor's theorem suggests that polynomials are useful in approximating an unknown function *at a specific point* (e.g., value of $x_i$), this doesn't imply that polynomials will be similarly useful when interest is on the entire domain of $\mathbf{x}$. If we consider the simpler problem of interpolating data, polynomials tend to perform poorly when approximating functions while requiring the curve to pass through the data points and maintain continuous derivatives with respect to $\mathbf{x}$; to meet these requirements the fitted polynomial curve will tend to oscillate wildly, especially toward the edges of the covariate space [e.g. @Wood2017-qi \S4.2, pp. 162--4]. This problem persists in the regression model setting where we are interested in smoothing data contaminated with noise.
+
+Second, while estimating the polynomial model is trivial, model selection becomes an issue. Model selection is needed to determine the order of polynomial term used in the model as this will ultimately determine the wiggliness of the fitted function. This could be achieved by use of backward selection, while penalized regression with ridge or lasso penalties would shrink specific coefficients thus reducing model complexity. Performing statistical inference (forming confidence intervals, computing *p* values, etc.) after conducting these model selection procedures is difficult and an active area of research in statistics. Ultimately, this means such approaches tend to be used where the predictive ability of the model is the primary focus. The theory of GAMs is sufficiently advanced that statistical inference is possible currently.
+
+A further problem with polynomial bases is that they are non-local; the fitted value of $y$ at some value $x = x_0$ is very sensitive to the values of $x$ a long way away from $x_0$, especially where the order of polynomial $p$ is greater than 2 or 3.
 
 ## Examples {.unnumbered}
 
@@ -379,53 +480,69 @@ In the remainder of the section I describe three representative examples that de
 
 ### Lactation curves {.unnumbered}
 
-As a simple illustration of the benefits of GAMs to learn the functional form of a relationship between a response variable and a covariate, rather then impose one through a parametric model, I reanalyse a small data set of average daily fat content per week of milk from a single cow ([@fig-lactation-curves]). The data were reported in @Henderson1990-bd. Initially, I followed their [@Henderson1990-bd] analysis and fitted a Gamma generalized linear model (GLM) with log link function. However, subsequent analysis of this model (and the GAM alternative described below) showed that the average daily fat data are under dispersed relative to the assumed conditional distribution. Instead, a Tweedie GLM (log link) was fitted, which has the same response shape as the gamma GLM but is more easily compared with the Tweedie GAM described below. The Tweedie GLM fitted had the following form
+As a simple illustration of the benefits of GAMs to learn the functional form of a relationship between a response variable and a covariate, rather than impose one through a parametric model, I reanalyse a small data set of average daily fat content per week of milk from a single cow ([@fig-lactation-curves]). The data were reported in @Henderson1990-bd. Initially, I followed their [@Henderson1990-bd] analysis and fitted a gamma generalized linear model (GLM) with log link function. However, subsequent analysis of this model (and the GAM alternative described below) showed that the average daily fat data are under dispersed relative to that assumed by the gamma distribution. Instead, a Tweedie GLM (log link) was fitted, which has the same response shape as the gamma GLM. The Tweedie distribution is a family of distributions with support on the non-negative real numbers [@Smyth1996-mk], making it especially suitable for positive or non-negative continuous random variables, such as milk yield, or milk fat content as observed in this example. The Tweedie distribution contains the gamma distribution as a special case, but has more flexibility in terms of the mean-variance relationship assumed of the response; the gamma has a quadratic mean-variance relationship, while those admitted by the Tweedie distributions considered here cover the range from linear (i.e. Poisson-like) to quadratic (i.e., gamma-like) mean-variance scaling.
+
+The Tweedie GLM fitted had the following form
 \begin{align*}
 \mathtt{fat}_i & \sim \mathcal{T}(\mu_i, \phi) \\
 \log(\mu_i)  & = \beta_0 + \beta_1 \log(\mathtt{week}_i) + \beta_2 \mathtt{week}_i \;.
 \end{align*}
-\end{linenomath*}
 @Henderson1990-bd compared the fit of the GLM model with several other formulations and models, including the model of @Wood1967-re
-\begin{linenomath*}
 \begin{equation*}
-\mathtt{fat}_i = \alpha \, \mathtt{week}_i^{\delta} \exp(\kappa \, \mathtt{week}_i) + \varepsilon
+\mathtt{fat}_i = \alpha \, \mathtt{week}_i^{\delta} \exp(\kappa \, \mathtt{week}_i) + \varepsilon_i
 \end{equation*}
-where $\alpha$, $\delta$, and $\kappa$ are parameters whose values are to be estimated, and $\varepsilon$ is a Gaussian error term. The linear predictors in the GLM and Wood's model are equivalent because of the log link function; $\beta_0 = \log{\alpha}$, $\beta_1 = \delta$, and $\beta_2 = \kappa$. However, we would not expect both models to produce the same fitted lactation curve as different distributional assumptions are being made; in the GLM version we assume the average daily fat values are conditionally Tweedie distributed, while in Wood's model they are assumed to be conditionally Gaussian distributed.
+where $\alpha$, $\delta$, and $\kappa$ are parameters whose values are to be estimated, and $\varepsilon$ is a Gaussian error term. Note that $\kappa$ is usually presented as $-\kappa$, hence the parameter estimate takes values that are the negative of the usual values. The linear predictors in the GLM and Wood's model are equivalent because of the log link function; $\beta_0 = \log{\alpha}$, $\beta_1 = \delta$, and $\beta_2 = \kappa$. However, we would not expect both models to produce the same fitted lactation curve as different distributional assumptions are being made; in the GLM version we assume the average daily fat values are conditionally Tweedie distributed, while in Wood's model they are assumed to be conditionally Gaussian distributed.
 
-These models were compared with a GAM version of the log-link, Tweedie GLM, where the fixed functional form for the lactation curve has been replaced by a smooth function to be estimated from the data
+These models were compared with a GAM version of the log-link, Tweedie GLM, where the fixed functional form of the lactation curve has been replaced by a smooth function of $\mathtt{week}_i$, $f(\mathtt{week}_i)$, that is to be estimated from the data
 \begin{align*}
 \mathtt{fat}_i & \sim \mathcal{T}(\mu_i, \phi) \\
 \log(\mu_i)  & = \beta_0 + f(\mathtt{week}_i)
 \end{align*}
 
-Wood's model [@Wood1967-re] was estimated via a nonlinear least squares model using the `nls()` function in R [version 4.5.0, @Rcore]. The Tweedie GLM and GAM were fitted using the `gam()` function of the *mgcv* package [version 1.9.3, @Wood2025-zt, @Wood2011-kn] for R. $k = 9$ basis functions were used for $f(\mathtt{week}_i)$ after application of the identifiability constraint.
+Wood's [-@Wood1967-re] model was estimated via nonlinear least squares using the `nls()` function in R [version 4.5.0, @Rcore]. The Tweedie GLM and GAM were fitted using the `gam()` function of the *mgcv* package [version 1.9.3, @Wood2025-zt; @Wood2011-kn] for R. $K$ = 9 basis functions were used for $f(\mathtt{week}_i)$ after application of the identifiability constraint.
+
+The fitted models were subsequently used to estimate some biologically-relevant parameters that could be used to inform breeding or optimise production methods. The week of peak milk fat content, the estimated fat content at the peak, and the rate of decline in the lactation curve at a point midway between the peak and the end of lactation are estimated for all models. For Wood's model, the timing of peak fat content is given by $\delta / \text{-}\kappa$ and peak fat content by $\alpha(\delta / \text{-}\kappa)^{\delta} e^{-\delta}$ [@Wood1967-re].
+
+For the Tweedie GAM, we do not have such directly interpretable parameters, therefore the peak is identified by evaluating the model at a grid of 1000 values over the $\mathtt{week}_i$ covariate and noting the point at which the estimated fat content is maximised. This process also yields the estimated maximum fat content. While the Tweedie GLM has the same interpretable parameters as Wood's model, determining the uncertainty in the estimate time to peak fat content and peak fat content is not trivial. Instead, the same procedure as that outlined for the GAM was also followed for the GLM.
+
+The first derivative (slope) of the falling limb of a lactation curve is often used as a measure of persistency in dairy animals. While there are several such derivatives that can be derived directly from the parameters of Wood's model [e.g., @Dijkstra2010-kb; @Oliveira2020-zr], exact equivalents for the GAM may not be simple to implement. Instead, for illustration and to avoid differences between models due to the specific details of implementation, for all three models I estimate the first derivative of the lactation curve at a point midway between the peak and the end of lactation. This is intentionally similar to the relative decline measure of @Dijkstra2010-kb. For all three models the first derivative is calculated using a central finite difference with $h$, the step size, set to be 1 day. The central finite difference estimate of the first derivative of the lactation curve, $\hat{f}^{\prime}$, is
+$$\hat{f}^{\prime} = \lim_{h\to0} \frac{f\left(x + \frac{h}{2}\right) - f\left(x - \frac{h}{2}\right)}{h} \;.
+$$
+
+The uncertainty in each of the three quantities estimated from the models was computed using 10,000 parametric bootstrap samples in the case of Wood's model using the `nlsBoot()` function from package *nlstools* [version `r packageVersion("nlstools")`,@Baty2015], while for the GLM and GAM 10,000 draws from the posterior distribution of the parameters $\boldsymbol{\beta}$ using a Gaussian approximation to the posterior were used [See @Miller2025-bd for a brief introduction to this idea]. Posterior sampling was per performed using the `fitted_samples()` function from package *gratia* [@Simpson2024-ml].
 
 ### Pig growth {.unnumbered}
 
-In this second example, I illustrate how individual growth curves can be estimated using a hierarchical GAM. A hierarchical GAM [HGAM, @Pedersen2019-ff] is a GAM that includes smooths are different hierarchical levels of the data structure; HGAMs are the equivalent of hierarchical or mixed effects models. In this example, different parameterisations of the model lead to either direct estimation of each individual animals growth curve, or a decomposition into an average growth curve plus animal-specific deviations from this average curve. Although previously covered by @Pedersen2019-ff in detail, a new addition here is the use of a constrained factor smooth to produce animal-specific deviations that are truly orthogonal to the average curve. This basis type was not available to @Pedersen2019-ff, and helps avoid switching to a first derivative penalty for the animal-specific curves that would be required to make the model identifiable if a "factor by" smooth was used.
+In this second example, I illustrate how individual growth curves can be estimated using various forms of hierarchical GAM. A hierarchical GAM [HGAM, @Pedersen2019-ff] is a GAM that includes smooths at different hierarchical levels of the data structure; HGAMs are the GAM equivalent of hierarchical or mixed effects models, which are frequently used with such data. In this example, different parametrisations of the model lead to either direct estimation of each individual animal's growth curve, or a decomposition into an average growth curve plus animal-specific deviations from this average curve. Although previously covered by @Pedersen2019-ff in detail, a new addition here is the use of a constrained factor smooth to produce animal-specific deviations that are truly orthogonal to the average curve. This basis type was not available to @Pedersen2019-ff, and helps avoid switching to a first derivative penalty for the animal-specific curves that would be required to make the model identifiable if a "factor by" smooth was used.
 
 Automated estimation of body weights is a useful on-farm method for continuously monitoring growth of commercial pigs. I analyse a subset of the weight data reported by @Franchi2023-xq from a study by @Bus2025-gg, using data from a single pen of 18 pigs (@fig-pig-fitted-plot). The body weight data were obtained using a depth camera (iDOL65, dol-sensors A/S, Aarhus, Denmark), and the each weight observation is the daily average of multiple measurements made by the camera. As the number of weight measurements made each day varied per animal and per day, each weight observation in the data is the average of a variable number of measurements. To accomodata this, the model included the number of measurements averages as an observation weight, where the precision of each response data is proportional to the number of measurements averaged.
 
-The data exhibit common and animal-specific variation. To model these features, four different GAMs were fitted to the pig weight data. All of the models ultimately provide animal-specific estimates of weight over time, but they decompose the growth curves in different ways. The weight data were assumed to be conditionally gamma distributed, with log link, $\mathtt{weight}_i \sim \mathcal{G}(\mu_i, \phi)$, with $\log(\mu_i) = \eta_i$, where $\boldsymbol{\eta}$ is the linear predictor. The linear predictors for each of the four models were:
+The data exhibit both common (shared) and animal-specific variation. To model these features, four different HGAMs were fitted to the pig weight data. All of the models ultimately provide animal-specific estimates of weight over time, but they decompose the growth curves in different ways. The weight data were assumed to be conditionally gamma distributed, with log link, $\mathtt{weight}_i \sim \mathcal{G}(\mu_i, \phi)$, with $\log(\mu_i) = \eta_i$, where $\boldsymbol{\eta}$ is the linear predictor. The gamma distribution was chosen as it has support on the positive real numbers; the weight of a pig is a necessarily positive continuous random variable. Other choices for the conditional distribution would be a log-normal or a Tweedie distribution, but standard model diagnostics did not indicate any problems with the use of the gamma distribution.
+
+The linear predictors for each of the four models were:
 \begin{align*}
 \text{P1:} \; \eta_i & = \beta_{a(i)} + f_{a(i)}(\mathtt{day}_i) \\
 \text{P2:} \; \eta_i & = \beta_0 + f_1(\mathtt{day}_i) + f_{a(i)}(\mathtt{day}_i) \\
 \text{P3:} \; \eta_i & = \beta_0 + f^{\ast}_{a(i)}(\mathtt{day}_i) \\
 \text{P4:} \; \eta_i & = \beta_0 + f_1(\mathtt{day}_i) + f^{\ast}_{a(i)}(\mathtt{day}_i)
 \end{align*}
-where $a(i)$ indicates to which animal the $i$th observation belongs. Model P1 includes the mean weight of each animal through a parametric factor term, $\beta_{a(i)}$, plus a smooth of observation day $\mathtt{day}_i$ *per* animal. The parametric factor term is required because the animal-specific smooths in this model are each subject to the sum-to-zero-constraint and as such do not contain the constant functions that are needed to model average weight of each animal. These smooths are known informally as "factor by smooths". Model P2 decomposes the data into an average growth curve, $f_1(\mathtt{day}_i)$, plus smooths, one per animal, that represent deviations from the average smooth, $f_{a(i)}(\mathtt{day}_i)$. Unlike the *factor by smooths*, these deviation smooths do include constant terms for each animal's average weight, hence only a constant term, $\beta_0$ is include in the parametric part of this model. In both models P1 and P2, the $f_{a(i)}(\mathtt{day}_i)$ smooths each have their own smoothing parameters, allowing the wiggliness of each animal's growth curve to vary, if supported by the data.
+where $a(i)$ is an indicator function that gives the animal to which the $i$th observation belongs. Model P1 includes the mean weight of each animal through a parametric factor term, $\beta_{a(i)}$, plus a smooth of observation day $\mathtt{day}_i$ *per* animal. The parametric factor term is required because the animal-specific smooths in this model are each subject to the sum-to-zero-constraint and as such do not contain the constant functions that are needed to model the average weight of each animal. These smooths are known informally as "factor by smooths". Model P2 decomposes the data into an average growth curve, $f_1(\mathtt{day}_i)$, plus smooths, one per animal, that represent deviations from the average smooth, $f_{a(i)}(\mathtt{day}_i)$. Unlike the "factor by smooths", these deviation smooths include constant terms for each animal's average weight, hence only a constant term, $\beta_0$ is include in the parametric part of this model. In both models P1 and P2, the $f_{a(i)}(\mathtt{day}_i)$ smooths each have their own smoothing parameters ($\lambda$s), allowing the wiggliness of each animal's growth curve to vary, if supported by the data.
 
-Model P3 is similar to model P1, except that each animal's growth curve, $f^{\ast}_{a(i)}(\mathtt{day}_i)$, shares a single smoothing parameter for the wiggliness and hence assumes that the wiggliness of each curve is similar. These smooths are denoted with a superscript $\ast$ to indicate the shared smoothing parameter, and can be thought of as the smooth equivalent of random slopes and intercepts; informally, we refer to these as *random smooths*. These smooths are fully penalised and contain constant terms to model the average weight of each animal, hence only the intercept, $\beta0$ is included in the parametric part of the model. Model P4 is similar to model P2 in terms of the decomposition into an *average* smooth and animal-specific smooth deviations, but, like model P3, the animal-specific smooths share a smoothing parameter and therefore assume they have similar wiggliness.
+Model P3 is similar to model P1, except that each animal's growth curve, $f^{\ast}_{a(i)}(\mathtt{day}_i)$, shares a single smoothing parameter ($\lambda$) for the wiggliness and hence assumes that the wiggliness of each curve is similar. These smooths are denoted with a superscript $\ast$ to indicate the shared smoothing parameter, and can be thought of as the smooth equivalent of random slopes and intercepts; informally, we refer to these as "random smooths". These smooths are fully penalised and contain constant terms to model the average weight of each animal, hence only the intercept, $\beta_0$ is included in the parametric part of the model. Model P4 is similar to model P2 in terms of the decomposition into an *average* smooth and animal-specific smooth deviations, but, like model P3, the animal-specific smooths share a smoothing parameter and therefore assumes they have similar wiggliness.
 
-For further details on the different approaches used in the models described above, see @Pedersen2019-ff. Each of the smooths in the models used $k = 9$ basis functions, after application of identifiability constraints.
+The range of GAMs fitted to the pig growth data is intended to illustrate the modelling choices open to the analyst; how are the individual growth curves modelled, and how much variation in wiggliness is allowed per growth curve. The choices then are; is each animal's growth curve modelled directly (P1 and P3) or are the growth curves modelled as an "average" growth curve plus animal-specific deviations from this (models P2 and P4), and should the animal-specific curves be allowed to have different wiggliness if needed (models P1 and P2), or should they all have the same wiggliness (models P3 and P4).
+
+For further details on the different approaches used in the models described above, see @Pedersen2019-ff. Each of the smooths in the models used $K$ = 9 basis functions, after application of identifiability constraints.
+
+The estimated daily growth rates on November 15^th^, 2021 for each pig were calculated from the selected GAM using a central finite difference estimate of the first derivative of the fitted growth curve. The estimated growth rate is given by the median of the posterior distribution and an 95% Bayesian credible interval on the estimate is provided. This date was chosen as weight observations for three of the pigs were missing after November 1^st^. All estimates were based on 10,000 draws from the posterior distribution, using a Gaussian approximation to the posterior implemented in the functions `response_derivatives()` and `derivative_samples()` from package *gratia*.
 
 ### Japanese quail {.unnumbered}
 
 In the third example, I demonstrate how to fit GAMs in the context of a designed experiment to obtain estimated treatment effects.
 
-The data [@Sarraude2020-cw] are from an experiment into the short- and long-term effects on quail of elevated exposure to different types of maternal thyroid hormone in Japanese quail, *Coturnix japonica* [@Sarraude2020-fu]. Briefly, the yolks of $n = \text{57}$ eggs were experimentally manipulated by injection with the prohormone, T~4~, its active metabolite, T~3~, or both T~4~ and T~3~ (T~3~T~4~), or a saline solution that acted as a control (CO). Body mass was initially measured 12 hours after hatching. Between days 3--15, body mass was  recorded every three days, then, between days 15--78, once per week using a digital balance.
+The data [@Sarraude2020-cw] are from an experiment into the short- and long-term effects on quail of elevated exposure to different types of maternal thyroid hormone in Japanese quail, *Coturnix japonica* [@Sarraude2020-fu]. Briefly, the yolks of $n = \text{57}$ eggs were experimentally manipulated by injection with the prohormone, T~4~, its active metabolite, T~3~, or both T~4~ and T~3~ (T~3~T~4~), or a saline solution that acted as a control (CO). Body mass was initially measured 12 hours after hatching. Between days 3--15, body mass was  recorded every three days, then, between days 15--78, once per week, using a digital balance.
 
-The quail weight data were provisionally assumed to be conditionally gamma distributed. Despite this being a reasonable working assumption, model diagnostics identified deviations from this assumption, and instead the data were modelled as being conditionally Tweedie distributed. The Tweedie family of distributions contains the Poisson (power, $p = 1$) and gamma distributions ($p = 2$) as special cases, and is more flexible than gamma, and allows for a range of mean-variance relationships through the power parameter, $p$, of the distribution. In the Tweedie GAMs that were fitted, the power parameter $p$ was allowed to vary between 1--2 and was estimated as an additional model constant term. Models fitted were:
+For the same reasons as in the pig growth example, the quail weight data are necessarily positive and were provisionally assumed to be conditionally gamma distributed. Despite this being a reasonable working assumption, model diagnostics identified deviations from this assumption, and instead the data were modelled as being conditionally Tweedie distributed. The Tweedie family of distributions contains the Poisson (power, $p = 1$) and gamma distributions ($p = 2$) as special cases, but is more flexible than gamma, allowing for a range of mean-variance relationships through the power parameter, $p$, of the distribution. In the Tweedie GAMs that were fitted, the power parameter $p$ was allowed to vary between 1--2 and was estimated as an additional model constant term. Models fitted were:
 \begin{align*}
 \text{Q1:} \; \eta_i & = \beta_0 + f(\mathtt{day}_i) + f_{\text{sex}(i)}(\mathtt{day}_i) + f^{\ast}_{\text{egg}(i)}(\mathtt{day}_i) + \xi_{\text{mother}(i)} \\
 \text{Q2:} \; \eta_i & = \beta_0 + f(\mathtt{day}_i) + f_{\text{treat}(i)}(\mathtt{day}_i) + f_{\text{sex}(i)}(\mathtt{day}_i) + f^{\ast}_{\text{egg}(i)}(\mathtt{day}_i) + \xi_{\text{mother}(i)} \\
@@ -434,21 +551,23 @@ The quail weight data were provisionally assumed to be conditionally gamma distr
 \text{Q4:} \; \eta_i & = \beta_0 + f(\mathtt{day}_i) + f_{\text{treat}(i)}(\mathtt{day}_i) + f_{\text{sex}(i)}(\mathtt{day}_i) + f_{\text{treat}(i),\text{sex}(i)}(\mathtt{day}_i) \\
                      & + \psi_{\text{egg}(i)} + \xi_{\text{mother}(i)}
 \end{align*}
-where $\mathtt{day}_i$ is the number of days since hatching, $\text{treat}(i)$, $\text{sex}(i)$, and $\text{egg}(i)$ indicate to which treatment group, sex, and bird the $i$th observation belongs. Smooth functions with subscript $\text{treat}(i)$, $\text{sex}(i)$, or $\text{egg}(i)$ are factor-smooth interactions representing deviations from the "average" smooth, $f(\mathtt{day}_i)$, for the indicated factor. $f_{\text{treat}(i),\text{sex}(i)}(\mathtt{day}_i)$ represents a higher order factor-smooth interaction, which allows the time varying treatment effects to also vary between male or female quail. $\psi_{\text{egg}(i)}$ and $\xi_{\text{mother}(i)}$ are iid Gaussian random intercepts for individual quail and their mother respectively. A $f^{\ast}$ represents a random smooth, where each smooth in the set shares a smoothing parameter. The factor-smooth interactions in this model were fitted using the constrained factor-smooth interaction basis in the *mgcv* package; this basis excludes the main effects (and lower-order terms in the case if higher-order interactions) to insure that the basis functions are orthogonal to those lower order terms.
+where $\mathtt{day}_i$ is the number of days since hatching, $\text{treat}(i)$, $\text{sex}(i)$, $\text{egg}(i)$, and $\text{mother}(i)$ indicate to which treatment group, sex, bird, and mother the $i$th observation belongs. Smooth functions with subscript $\text{treat}(i)$, $\text{sex}(i)$, or $\text{egg}(i)$ are factor-smooth interactions representing deviations from the "average" smooth, $f(\mathtt{day}_i)$, for the indicated factor. $f_{\text{treat}(i),\text{sex}(i)}(\mathtt{day}_i)$ represents a higher order factor-smooth interaction, which allows the time varying treatment effects to also vary between male or female quail. $\psi_{\text{egg}(i)}$ and $\xi_{\text{mother}(i)}$ are iid Gaussian random intercepts for individual quail and their mother respectively. A $f^{\ast}$ represents a random smooth, where each smooth in the set shares a smoothing parameter. The factor-smooth interactions in this model were fitted using the constrained factor-smooth interaction basis in the *mgcv* package; this basis excludes the main effects (and lower-order terms in the case of higher-order interactions) to insure that the basis functions are orthogonal to those lower order terms.
 
-Model Q1 represents a null model containing no treatment effects but models the remaining features of the data, decomposing the growth curves into an average effect, a sex-specific effect, and individual quail-specific effects, plus a maternal effect. Model Q2 extends Q1 by adding the treatment effect, $f_{\text{treat}(i)}(\mathtt{day}_i)$, which models deviations from the average curve for each of the four treatment levels. Model Q3 further extends the Q2 to allow different treatment-specific curves for male and female quail. Model Q4 is a variant of Q3, replacing the quail-specific growth curve deviations with an individual level random intercept. *A priori*, model Q3 represents the complete set of hypotheses an analyst might expect to consider for these data.
+Model Q1 represents a null model containing no treatment effects but models the remaining features of the data, decomposing the growth curves into an average effect, a sex-specific effect, and individual quail-specific effects, plus a maternal effect. Model Q2 extends Q1 by adding the treatment effect, $f_{\text{treat}(i)}(\mathtt{day}_i)$, which models deviations from the average curve for each of the four treatment levels. Model Q3 extends Q2 to allow different treatment-specific curves for male and female quail. Model Q4 is a variant of Q3, replacing the quail-specific growth curve deviations with an individual level random intercept. *A priori*, model Q3 represents the complete set of hypotheses an analyst might expect to consider for these data.
 
-Each smooth in the quail models used $k = 9$ basis functions after application of identifiability constraints, except the quail-specific smooths, $f^{\ast}_{\text{egg}(i)}(\mathtt{day}_i)$, which used $k = 6$ basis functions per individual. This reduced number of basis functions per smooth was a reflection that after accounting for the average shape of the growth curves, plus sex and treatment deviations, any remaining individual-specific variation from these other effects would be smaller in magnitude and less complex (wiggly).
+Each smooth in the quail models used $K$ = 9 basis functions after application of identifiability constraints, except the quail-specific smooths, $f^{\ast}_{\text{egg}(i)}(\mathtt{day}_i)$, which used $K$ = 6 basis functions per individual. This reduced number of basis functions per smooth reflects the fact that after accounting for the average shape of the growth curves, plus sex and treatment deviations, any remaining individual-specific variation from these other effects would be smaller in magnitude and less complex (wiggly).
+
+These data were previously analysed using GAMs by @Sarraude2020-cw and @Morota2021-jz; @Sarraude2020-cw and @Morota2021-jz use an ARMA(1,1) correlation for model residuals to account for the longitudinal nature of the data that remain unmodelled after inclusion of smooths of bird age conditioned on treatment or sex, and it is unclear if a non-Gaussian distribution was used. The main advance provided by this reanalysis is that instead of treating the individual quail growth curves as stochastic components of the model, here I directly model those curves using "random smooths". Additionally, here I assume the response data are conditionally distributed Tweedie, and I directly assess the treatment by sex interaction.
 
 ### Smoothness selection & inference {.unnumbered}
 
-Restricted marginal likelihood (REML) smoothness selection [@Wood2011-kn] was used to estimate each of the GAMs fitted to the example data sets. REML was used because it has slightly better performance in terms of estimating smoothing parameters compared to marginal likelihood (ML) smoothness selection. We did not use GCV smoothness selection for these examples because i) prediction error is a less important consideration here where we are interested in estimation of effects and statistical inference, and ii) GCV is prone to under smoothing [@Reiss2009-fk; @Wood2011-kn].
+Restricted marginal likelihood (REML) smoothness selection [@Wood2011-kn] was used to estimate each of the GAMs fitted to the example data sets. REML was used because it has slightly better performance in terms of estimating smoothing parameters compared to marginal likelihood (ML) smoothness selection. We did not use GCV smoothness selection for these examples because i) prediction error is a less important consideration here where one is interested in estimation of effects and statistical inference, and ii) GCV is prone to under smoothing [@Reiss2009-fk; @Wood2011-kn].
 
-In the lactation curve example I use standard model appraisal teachniques to identify the most useful model. In the pig growth example, AIC was used to identify which of the decompositions of time provided the best fit, but the specific choice of model was made on other grounds, using domain knowledge.
+In the lactation curve example I use standard model diagnostic techniques (e.g., quantile-qauntile (QQ) plots, plots of residuals versus linear predictor values) to identify the most useful model. In the pig growth example, AIC was used to identify which of the decompositions of time provided the best fit, but the specific choice of model was made using domain knowledge.
 
-In the quail hormone example, AIC values are reported, but *a priori* I chose to report results from model Q3, the "full" model from the point of view of the potential hypotheses under consideration; as the treatment effect was allowed to vary between sexes, I take an estimation-based approach and quantify the magnitudes of any treatment by sex interactions using the most complex model. The remaining models are fitted and reported on briefly for illustrative purposes; performing model term selection (for example, testing the higher order $f_{\text{treat}(i)}(\mathtt{day}_i)$ interaction, and deciding on the basis of a *p* value or AIC whether to retain it in the model or not), would introduce biases into the inference process. As we currently lack good post selection inference methods for handling this kind of selection, it is prudent to simply not enter into such selection procedures.
+In the quail hormone example, AIC values are reported, but *a priori* I chose to report results from model Q3, the "full" model from the point of view of the potential hypotheses under consideration; as the treatment effect was allowed to vary between sexes, I take an estimation-based approach and quantify the magnitudes of any treatment by sex interactions using the most complex model. The remaining models are fitted and reported on briefly for illustrative purposes; performing model term selection (for example, testing the higher order $f_{\text{treat}(i)}(\mathtt{day}_i)$ interaction, and deciding on the basis of a *p* value or AIC whether to retain it in the model or not), would introduce biases into the inference process. As we currently lack post selection inference methods to deal with this model form of selection it is prudent to simply not enter into such model selection procedures.
 
-Using model Q3 allows there to be treatment differences between male and female quail; subsequent estimation of values of interest and comparison among these estimates is instead the inference route followed for the quail example. To illustrate, I estimate two quantities of interest: i) the estimated growth rate (slope) of an average quail at $\mathtt{day} = \text{20}$ in all combinations of treatment and sex, and ii) the estimated weight of an average quail at the end of the experiment ($\mathtt{day} = \text{78}$), again for all combaination of treatment and sex. All pairwise comparisons among treatment levels within sex were performed, with adjustment of $p$ values to control the false discovery rate using the Benjamini--Yekutieli [@Benjamini2001-kh] procedure. Estimates and pairwise comparisons were computed using the `slopes()` and `predictions()` functions of the *marginaleffects* package for R [version 0.27.0, @Arel-Bundock2024-nw]. Estimates of the expected growth curves for average quail in all combinations of treatment and sex were produced using the `conditional_values()` function in the R package *gratia* [version `r packageVersion("gratia")`, @Simpson2024-ml].
+Using model Q3 allows there to be treatment differences between male and female quail; subsequent estimation of values of interest and comparison among these estimates is instead the inference route followed for the quail example. To illustrate, I estimate two quantities of interest: i) the estimated growth rate (slope) of an average quail at $\mathtt{day} = \text{20}$ in all combinations of treatment and sex, and ii) the estimated weight of an average quail at the end of the experiment ($\mathtt{day} = \text{78}$), again for all combination of treatment and sex. All pairwise comparisons among treatment levels within sex were performed, with adjustment of *p* values to control the false discovery rate using the Benjamini--Yekutieli [@Benjamini2001-kh] procedure. Estimates and pairwise comparisons were computed using the `slopes()` and `predictions()` functions of the *marginaleffects* package for R [version 0.27.0, @Arel-Bundock2024-nw]. Estimates of the expected growth curves for average quail in all combinations of treatment and sex were produced using the `conditional_values()` function in the R package *gratia* [version `r packageVersion("gratia")`, @Simpson2024-ml].
 
 All figures were produced using the R packages *gratia* and *ggplot2* [version 3.5.2, @Wickham2016-dg].
 
@@ -458,6 +577,7 @@ All figures were produced using the R packages *gratia* and *ggplot2* [version 3
 
 ```{r}
 #| label: lactation-example-code
+#| cache: true
 lactation <- data.frame(
   yield = c(0.31, 0.39, 0.50, 0.58, 0.59, 0.64, 0.68, 0.66,
             0.67, 0.70, 0.72, 0.68, 0.65, 0.64, 0.57, 0.48,
@@ -506,9 +626,10 @@ ds <- yield_gam |>
   data_slice(
     week = evenly(week, n = n_new)
   )
-
+# bootstrap the NLS model for uncertainty estimates
 set.seed(1)
-yield_nls_boot <- nlstools::nlsBoot(yield_nls, niter = 999)
+n_boot <- 10000
+yield_nls_boot <- nlstools::nlsBoot(yield_nls, niter = n_boot)
 fv_nls <- nlstools::nlsBootPredict(
   yield_nls_boot,
   newdata = ds,
@@ -573,6 +694,8 @@ fv_models <- fv_glm |>
 #| fig-cap: Results of model fitting to the average daily fat content data from @Henderson1990-bd. a) observed average daily fat content (points) and estimated lactation curves from Wood's [-@Wood1967-re] model, a Tweedie GLM, and a Tweedie GAM (lines) with associated 95% confidence (Wood's model) or 95% credible intervals (GLM and GAM). Response residuals for Wood's model (b), Tweedie GLM (c), and Tweedie GAM (d), plus scatter plot smoothers (lines) and 95% credible intervals (shaded ribbons).
 #| fig-width: 10
 #| fig-height: 6
+#| out-width: 90%
+#| fig-align: center
 yield_plt <- lactation |>
   ggplot(
     aes(
@@ -686,7 +809,7 @@ yield_plt + guide_area() + nls_resid_plt + glm_resid_plt + gam_resid_plt +
 
 ```{r}
 #| label: tbl-yield
-#| tbl-cap: Comparison of models fitted to the lactation curve data set. Degrees of freedom and effective degrees of freedom are shown for the Wood model and Tweedie GLM, and for the Tweedie GAM, respectively, showing the complexity in terms of (effective) numbers of parameters in each model. Akaike's An information criterion (AIC) values are shown for each model, alongside an estimate of the root mean squared error of the model fit estimated from the response residuals of each model.
+#| tbl-cap: Comparison of models fitted to the lactation curve data set. Degrees of freedom and effective degrees of freedom ((E)DF) are shown for the Wood model and Tweedie GLM, and for the Tweedie GAM, respectively, showing the complexity in terms of (effective) numbers of parameters in each model. Akaike's An information criterion (AIC) values are shown for each model, alongside an estimate of the root mean squared error of the model fit estimated from the response residuals of each model.
 rmse <- function(model) {
   sqrt(sum(resid(model, type = "response")^2))
 }
@@ -706,48 +829,328 @@ yield_tab <- tibble(
   )
 )
 
-knitr::kable(yield_tab, caption = NA)
+tt(yield_tab, digits = 3)
+```
+
+```{r}
+#| label: lactation-derived-stats
+#| cache: true
+
+# Now let's compare some values of interest
+#
+# * the day of peak yield,
+# * the yield at the peak,
+# * a rate of decline from the peak to the end of lactation
+#
+# For Wood's model, these are
+#
+# * b / c
+# * a(b/c)^b * e^-b, and
+# * a derivative of the curve
+
+# use the bootstrap stats to get bootstrap distribution of each of these
+coefs <- yield_nls_boot$coefboot |> data.frame()
+# note I fitted exp(c*week), so we need to negate c here
+nls_peak_boot <- with(coefs, b / -c)
+# max yield at peak week
+nls_max_yield <- with(coefs, a * median(nls_peak_boot)^b * exp(-b))
+
+# now find it for the glm/gam
+n_sim <- 10000 # how many posterior draws
+n_grid <- 1000 # how many points on lactation curve shall we estimate at
+
+# create data for prediction
+ds <- yield_gam |>
+  data_slice(
+    week = evenly(week, n_grid)
+  ) |>
+  mutate(
+    .row = row_number()
+  )
+
+# posterior expectations of tweedie gam
+fs_gam <- yield_gam |>
+  fitted_samples(
+    data = ds,
+    n = n_sim,
+    seed = 2
+  ) |> # add on a row identifier for linking with data
+  left_join(
+    ds, by = join_by(.row)
+  )
+
+# posterior expectations of tweedie glm
+fs_glm <- yield_glm |>
+  fitted_samples(
+    data = ds,
+    n = n_sim,
+    seed = 2
+  ) |> # add on a row identifier for linking with data
+  left_join(
+    ds, by = join_by(.row)
+  )
+
+# find the peak of each posterior draw
+peak_post_gam <- fs_gam |>
+  group_by(.draw) |>
+  slice_max(.fitted)
+
+peak_post_glm <- fs_glm |>
+  group_by(.draw) |>
+  slice_max(.fitted)
+
+# create a data frame of results
+models_f <- factor(c("Wood", "GLM", "GAM"), levels = c("GAM", "GLM", "Wood"))
+peak_week_tbl <- data.frame(
+  model = models_f,
+  .estimate = c(
+    nls_peak_boot |> quantile(prob = 0.5),
+    peak_post_glm |> pull(week) |> quantile(prob = 0.5),
+    peak_post_gam |> pull(week) |> quantile(prob = 0.5)
+  ),
+  .lower = c(
+    nls_peak_boot |> quantile(prob = 0.025),
+    peak_post_glm |> pull(week) |> quantile(prob = 0.025),
+    peak_post_gam |> pull(week) |> quantile(prob = 0.025)
+  ),
+  .upper = c(
+    nls_peak_boot |> quantile(prob = 0.975),
+    peak_post_glm |> pull(week) |> quantile(prob = 0.975),
+    peak_post_gam |> pull(week) |> quantile(prob = 0.975)
+  )
+)
+
+# generate predicted values the NLS model for each of the bootstrap samples
+# here, prediction is for the peak
+fv_nls2 <- nlstools::nlsBootPredict(
+  yield_nls_boot,
+  newdata = data.frame(
+    week = nls_peak_boot |>
+      quantile(prob = 0.5) |>
+      rep(2)
+  ),
+  interval = "confidence"
+)
+
+# combine fat content at peak - note we already have the estimate for the peak
+# in the posterior draw objects
+peak_fat_tbl <- data.frame(
+  model = models_f,
+  .estimate = c(
+    fv_nls2[1, 1],
+    peak_post_glm |> pull(.fitted) |> quantile(prob = 0.5),
+    peak_post_gam |> pull(.fitted) |> quantile(prob = 0.5)
+  ),
+  .lower = c(
+    fv_nls2[1, 2],
+    peak_post_glm |> pull(.fitted) |> quantile(prob = 0.025),
+    peak_post_gam |> pull(.fitted) |> quantile(prob = 0.025)
+  ),
+  .upper = c(
+    fv_nls2[1, 3],
+    peak_post_glm |> pull(.fitted) |> quantile(prob = 0.975),
+    peak_post_gam |> pull(.fitted) |> quantile(prob = 0.975)
+  )
+)
+
+## derivatives...
+
+# Better to just estimate the central finite-difference based first derivative
+# at this time point mid way between peak and end of lactation
+
+# nlstools doesn't return the predicted values for each bootstrap sample's
+# coefs, so here I hack a function together from nlstools::nlsBootPredict
+my_nlsBootPredict <- function(nlsBoot, newdata) {
+  nlsformula <- formula(nlsBoot$nls)
+  nlsresid <- resid(nlsBoot$nls)
+  param <- nlsBoot$coefboot
+  bootparam <- nlsBoot$coefboot
+  niter <- length(nlsBoot$rse)
+  "formula2function" <- function(formu) {
+    arg1 <- all.vars(formu)
+    arg2 <- vector("list", length(arg1))
+    names(arg2) <- arg1
+    Args <- do.call("alist", arg2)
+    fmodele <- as.function(c(Args, formu))
+    return(fmodele)
+  }
+  f1 <- formula2function(formula(nlsformula)[[3]])
+  vardep <- all.vars(nlsformula[[2]])
+  varindep <- intersect(all.vars(nlsformula[[3]]), colnames(newdata))
+  one.mean.pred <- function(i) {
+    do.call(f1, as.list(c(param[i, ], newdata[varindep])))
+  }
+  sapply(1:niter, one.mean.pred)
+}
+
+# function to compute a point in lactation that if halfway between the peak and
+# the end of lactation
+half_way_pt <- function(peak, tf = 35) {
+  peak + ((tf - peak) / 2)
+}
+
+# for this then we need predictions at +/- 0.5 days at the mid-way point
+# between the peak and the end of lactation
+
+# first, convert 1 week to a half day - h is 1/2 the delta in the finite
+# difference
+h <- (1 / 7) / 0.5
+
+# compute values at mid point +/- h (half a day)
+finite_diff_nls <- my_nlsBootPredict(
+  yield_nls_boot,
+  newdata = data.frame(
+    week = half_way_pt(peak_week_tbl[1, 2]) + c(-h, h)
+  )
+)
+
+# function to compute the central finite difference
+central_deriv <- function(x, h) {
+  (x[2] - x[1]) / h
+}
+
+# compute finite difference 1st deriv; h is doubled here as the total delta is
+# 1 day and h if 0.5 days
+persistence_nls <- apply(finite_diff_nls, 2, central_deriv, h = h * 2)
+
+# compute the derivative for the GLM
+persistence_glm <- yield_glm |>
+  response_derivatives(
+    data = data.frame(week = half_way_pt(peak_week_tbl[2, 2])),
+    focal = "week",
+    order = 1,
+    type = "central",
+    eps = h,
+    seed = 42,
+    n_sim = 10000
+  )
+
+# compute the derivative for the GAM
+persistence_gam <- yield_gam |>
+  response_derivatives(
+    data = data.frame(week = half_way_pt(peak_week_tbl[3, 2])),
+    focal = "week",
+    order = 1,
+    type = "central",
+    eps = h,
+    seed = 42,
+    n_sim = 10000
+  )
+
+# combine persistence estimates into a table
+# NOTE: response_derivatives is already summarising the posterior distribution
+#       so no need for a summary here
+persistence_tbl <- data.frame(
+  model = models_f,
+  .estimate = c(
+    persistence_nls |> quantile(prob = 0.5),
+    persistence_glm |> pull(.derivative),
+    persistence_gam |> pull(.derivative)
+  ),
+  .lower = c(
+    persistence_nls |> quantile(prob = 0.025),
+    persistence_glm |> pull(.lower_ci),
+    persistence_gam |> pull(.lower_ci)
+  ),
+  .upper = c(
+    persistence_nls |> quantile(prob = 0.975),
+    persistence_glm |> pull(.upper_ci),
+    persistence_gam |> pull(.upper_ci)
+  )
+)
+```
+
+@fig-lactation-derived-stats-plot shows the estimated timing of peak fat content, the estimated fat content at the peak, and the first derivative of the estimated lactation curve at a point midway between the peak and the end of lactation, for the three estimated models. The peak in fat content is estimated to be significantly later in the GAM and the timing of the peak much more uncertain compared to both the fits from Wood's model and the GLM ([@fig-lactation-derived-stats-plot]a). This reflects the observation that Wood's model and the GLM both over-estimate the fat content in the milk between weeks 5 and 10, and miss the broad period of high fat content up to week 14. Given the broad peak evident in the data, it is not unsurprising that the GAM-based estimate of the timing of the peak is much more uncertain than the other two estimates. The estimated peak fat content in the milk is broadly similar across the three models, with the GLM fit being slightly higher and more uncertain than either that for Wood's model or the GAM ([@fig-lactation-derived-stats-plot]b). The rate of decay (first derivative) of the falling limb of the lactation curve is estimated to be substantially faster in both the GLM and Wood's model compared with the GAM estimate. This discrepancy is due to clear plateau in fat content between weeks 20 and 27 that is completely missed by the other two models. It should be noted that the posterior sampling method could equally be applied to yield an average derivative over the falling limb of the lactation curve if that was of greater focus.
+
+For the timing of the peak and the rate of decay in the lactation curve, the estimates from the GLM and Wood's model are clearly overly optimistic in their uncertainty; the results in [@fig-lactation-derived-stats-plot]a & c imply quite precisely estimated values and yet these models exhibit substantial biases in their estimated lactation curves, an issue that largely arises because they force a particular model to the data rather than allowing the data to inform the shape of the lactation curve.
+
+```{r}
+#| label: fig-lactation-derived-stats-plot
+#| fig-cap: "Quantities of interest derived from Wood's model, a Tweedie GLM, and a Tweedie GAM fitted to the lactation data example: a) the estimated week of peak average daily fat content, b) the estimated average daily fat content at the peak, and c) the rate of change (first derivative) of the lactation curve estimated at a point that is midway between the peak fat content and the end of lactation. The points are the estimated values and the lines are a 95% uncertainty interval. The uncertainty interval is based on the 0.025 and 0.975 percentiles of the bootstrap distribution of model coefficient estimates (Wood's model) or of the posterior distribution (GLM and GAM)."
+#| fig-width: 10
+#| fig-height: 3
+#| out-width: 90%
+#| fig-align: center
+#| dependson: lactation-derived-stats
+
+# week of peak fat content
+fat_comp1 <- peak_week_tbl |>
+  ggplot(
+    aes(
+      x = model,
+      y = .estimate,
+      colour = model
+    )
+  ) +
+  geom_pointrange(
+    aes(
+      ymin = .lower, ymax = .upper
+    )
+  ) +
+  labs(
+    x = NULL,
+    y = "Week"
+  ) +
+  scale_color_okabe_ito(guide = "none")
+
+# fat content at peak
+fat_comp2 <- peak_fat_tbl |>
+  ggplot(
+    aes(
+      x = model,
+      y = .estimate,
+      colour = model
+    )
+  ) +
+  geom_pointrange(
+    aes(
+      ymin = .lower, ymax = .upper
+    )
+  ) +
+  labs(
+    x = NULL,
+    y = expression(Average ~ daily ~ fat ~ (kg ~ day^{-1}))
+  ) +
+  scale_color_okabe_ito(guide = "none")
+
+# rate of change in fat content
+fat_comp3 <- persistence_tbl |>
+  ggplot(
+    aes(
+      x = model,
+      y = .estimate,
+      colour = model
+    )
+  ) +
+  geom_pointrange(
+    aes(
+      ymin = .lower, ymax = .upper
+    )
+  ) +
+  labs(
+    x = NULL,
+    y = expression(Rate ~ of ~ change ~ (day^{-1}))
+  ) +
+  scale_color_okabe_ito(guide = "none")
+
+# combine
+fat_comp1 + fat_comp2 + fat_comp3 +
+  plot_annotation(tag_levels = "a", tag_suffix = ")")
 ```
 
 ## Pig growth
 
 ```{r}
-#| label: fig-pig-data-plot
-#| fig-cap: todo
-#| fig-width: 8
-#| fig-height: 6
-pw <- read_csv(
-    "data/pig-weight-data.csv",
-    col_types = "Ddddc"
-  ) |>
+#| label: load-pig-growth-data
+#| echo: false
+#| message: false
+pw <- read_csv("data/pig-weight-data.csv") |>
   mutate(
-    day = yday(date),
-    animal = factor(animal, levels = seq_len(18)),
+    animal = factor(animal)
+  ) |>
+  rename(
+    day = day_of_year
   )
-
-pw_plt <- pw |>
-  ggplot(
-    aes(
-      x = date,
-      y = weight_estimate,
-      group = animal,
-      # colour = animal
-    )
-  ) +
-  geom_point(
-    alpha = 0.7,
-    size = 0.7, 
-    colour = "#56B4E9"
-  ) +
-  #geom_line() +
-  guides(colour = "none") +
-  labs(
-    x = NULL,
-    y = expression(Weight ~ (kg))
-  ) +
-  facet_wrap(~ animal) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
 ```
 
 ```{r}
@@ -806,15 +1209,17 @@ pw_chosen <- pw_m2
 
 The estimated growth curves for the 18 pigs in the pig growth example are shown in @fig-pig-fitted-plot, which were produced from model P2. Of the four models fitted, the two models that decomposed the growth effects into an average curve plus animal-specific deviations from the average curve, models P2 and P4, resulted in the most parsimonious fits from the point of view of AIC [@tbl-pig-weight-summary]. This is due to these two model forms using many fewer degrees of freedom (~64) than either of models P1 (EDF = `r model_edf(pw_m1) |> pull(.edf) |> round(2)`) or P3 (EDF = `r model_edf(pw_m3) |> pull(.edf) |> round(2)`). Models P1 and P3 do not include the average curve and as a result expend many more degrees of freedom modelling the same general shape for each animal.  Interestingly, for these data at least, allowing for a different smoothing parameter (P2) for each animals' deviation smooth seems to be preferred over using a single smoothing parameter (P4). In part, this is due to the somewhat idiosyncratic nature of each animal's growth curve in this data set.
 
-Although the deviance explained is very high (~96%) for all models, much of this is due to use of random effects to model differences between animals, and should not be taken as a sign that the model can effectively perfectly predict the weight of a pig under similar conditions; it is clear from @fig-pig-fitted-plot that there is much unmodelled variation aorund the estimated growth curves. One feature of the data that I do not address here is the clear variation among animals in the variance of the depth camera-based weight measurements; animals 5, 6, and 9 in particular, exhibit substantially greater variation than the other animals in the data set.
+Although the deviance explained is very high (~96%) for all models, much of this is due to use of random effects to model differences between animals, and should not be taken as a sign that the model can effectively perfectly predict the weight of a pig under similar conditions; it is clear from @fig-pig-fitted-plot that there is much unmodelled variation around the estimated growth curves. One feature of the data that I do not address here is the clear variation among animals in the variance of the depth camera-based weight measurements; animals 5, 6, and 9 in particular, exhibit substantially greater variation than the other animals in the data set. I return to this point briefly later.
 
-@tbl-pig-weight-model-terms provides an overview of the two terms in model P2. Although the average curve ($f(\mathtt{day}_i)$) was allowed to use $k = 9$ basis functions, the wiggliness penalty has shrunk this back to `r pw_chosen |> edf(select = "s(day)") |> pull(.edf) |> round(3)` effective degrees of freedom (EDF). The animal-specific deviation smooths, $f_{\text{a}(i)}(\mathtt{day}_i)$, were fully penalised and as such used $k = 10$ basis functions per animal. Here we clearly see the effect of the wiggliness penalty, which has resulted in a reduction from a potential 180 EDF for the set of animal-specific smooths to `r pw_chosen |> edf(select = "s(day,animal)") |> pull(.edf) |> round(3)` EDF. The test of the null hypothesis for the average growth curve and the omnibus test for the pig-specific deviation smooths indicate both are statistically interesting.
+@tbl-pig-weight-model-terms provides an overview of the two terms in model P2. Although the average curve ($f(\mathtt{day}_i)$) was allowed to use $K$ = 9 basis functions, the wiggliness penalty has shrunk this back to `r pw_chosen |> edf(select = "s(day)") |> pull(.edf) |> round(3)` effective degrees of freedom (EDF). The animal-specific deviation smooths, $f_{\text{a}(i)}(\mathtt{day}_i)$, were fully penalised and as such used $K$ = 10 basis functions per animal. Here we clearly see the effect of the wiggliness penalty, which has resulted in a reduction from a potential 180 EDF for the set of animal-specific smooths to `r pw_chosen |> edf(select = "s(day,animal)") |> pull(.edf) |> round(3)` EDF. The test of the null hypothesis for the average growth curve and the omnibus test for the pig-specific deviation smooths indicate both are statistically interesting effects.
 
 ```{r}
 #| label: fig-pig-fitted-plot
-#| fig-cap: Depth camera-based weight estimates from 18 commerical pigs. The data (black points) are the average of multiple measurements taken of each animal per day, 1 panel per pig. The panel labels indicate to the pig shown. The estimated growth curve for each pig obtained using generalized additive model P2 is shown by the blue line in each panel. The blue shaded ribbon is the 95% bayesian credible interval around the estimate curve.
+#| fig-cap: Depth camera-based weight estimates from 18 commerical pigs. The data (black points) are the average of multiple measurements taken of each animal per day, 1 panel per pig. The panel labels indicate the pig shown. The estimated growth curve for each pig obtained using generalized additive model P2 is shown by the blue line in each panel. The blue shaded ribbon is the 95% Bayesian credible interval around the estimate curve.
 #| fig-width: 8
 #| fig-height: 6
+#| out-width: 90%
+#| fig-align: center
 pw_ds <- pw |>
   select(animal, date) |>
   data_slice(
@@ -860,7 +1265,7 @@ fv_pw_chosen |>
 
 ```{r}
 #| label: tbl-pig-weight-summary
-#| tbl-cap: Comparison of models fitted to the pig weight data set. The model label is shown (see text for the specific model formulations). Effective degrees of freedom represents model complexity in terms of the (effective) number of parameters in each model. Akaike's An information criterion (AIC) values, model deviance, and deviance explained as a proportion are also reported.
+#| tbl-cap: Comparison of models fitted to the pig weight data set. The model label is shown (see text for the specific model formulations). Effective degrees of freedom (EDF) represents model complexity in terms of the (effective) number of parameters in each model. Akaike's An information criterion (AIC) values, model deviance, and deviance explained as a proportion are also reported.
 glance(pw_m1) |>
   bind_rows(
     glance(pw_m2),
@@ -885,17 +1290,18 @@ glance(pw_m1) |>
     EDF = df,
     Deviance = deviance
   ) |>
-  knitr::kable(caption = NA, digits = 3)
+  tt(digits = 3)
 ```
 
 ```{r}
 #| label: tbl-pig-weight-model-terms
-#| tbl-cap: Model summary for model P2 fitted to the pig growth data set. The model term for comparison with the descriptions in the text and the label reported by the software are both shown for clarity. $k$ is the number of basis functions *per smooth*, EDF is the effective degrees of freedom, a measure of the complexity of each term, F is the test statistic and $p$ the *p* value of the null hypothesis of a flat constant function or functions.
-#| tbl-colwidths: [30,25,5,15,15,10]
+#| tbl-cap: Summary for model P2 fitted to the pig growth data set. The model term for comparison with the descriptions in the text and the label reported by the software are both shown for clarity. $k$ is the number of basis functions *per smooth*, EDF is the effective degrees of freedom, a measure of the complexity of each term, $\text{EDF}_{\text{Ref.}}$ is the reference degrees of freedom used in the tests, F is the test statistic and $p$ the *p* value of the null hypothesis of a flat constant function or functions. The tests for terms in rows 1--3 are Wald-like tests with appropriate degrees of freedom. The tests of smooth terms (rows 2--3) are described in @Wood2013-fb.
+#| tbl-colwidths: [25,20,6,13,13,13,10]
 overview(pw_chosen) |>
   select(-type) |>
   add_column(
     "Model term" = c(
+      "$\\beta_0$",
       "$f(\\mathtt{day})$",
       "$f_{a(i)}(\\mathtt{day})$"
     ),
@@ -905,10 +1311,70 @@ overview(pw_chosen) |>
     "Label" = term,
     `$k$` = k,
     EDF = edf,
+    `$\\text{EDF}_{\\text{Ref.}}$` = ref.edf,
     F = statistic,
     `$p$` = "p.value"
   ) |>
-  knitr::kable(caption = NA, digits = 3)
+  tt(digits = 3)
+```
+
+[@fig-pig-growth-rates]a shows the estimated daily growth rate on November 15^th^, 2021 for each of the 18 pigs. Despite the fact that with GAMs we do not have a simple equation that can be used for estimation of biologically-relevant values using the model, posterior simulation is a simple and effective way to estimate values of interest, such as the derivatives of the response, and provide an uncertainty estimate. For three of the pigs in [@fig-pig-growth-rates]a, no weight estimates were available after November 1^st^, so the estimated growth curve for these pigs is not constrained by data on these animals, but instead is estimated using the shape of the average growth curve ($f(\mathtt{day}_i)$). These estimates do include an animal-specific component, however, because we see quite differently-shaped posterior distributions for pig 17 compared with pigs 2 and 13, with the estimated growth curve of pig 17 being considerably more uncertain than either of the curves for the other two pigs. This is reflected in the much broader posterior distribution for pig 17 compared to those for pigs 2 and 13 [@fig-pig-growth-rates]b.
+
+```{r}
+#| label: fig-pig-growth-rates
+#| fig-cap: a) Estimated daily growth rate on November 15^th^, 2021 and 95% Bayesian credible interval for the 18 pigs in the pig growth example. b) Posterior distribution of daily growth rate on November 15^th^, 2021, for three pigs (numbers 2, 13, and 17), for whom weight observations ceased before November 1^st^, 2021. In b), the shaded region is the posterior distribution, the point, and thick and thin bars are the posterior median, and 66% and 95% posterior intervals respectively.
+#| fig-width: 8
+#| fig-height: 3
+#| out-width: 90%
+#| fig-align: center
+# estimates of growth rate on November 15th, 2021
+nov15_ds <- pw_m2 |>
+  data_slice(
+    day = format(as.Date("2021-11-15"), "%j") |> as.numeric(),
+    animal = evenly(animal)
+  )
+
+nov15_deriv <- pw_m2 |>
+  response_derivatives(
+    data = nov15_ds,
+    n_sim = 10000,
+    eps = 1,
+    type = "central",
+    focal = "day"
+  )
+
+nov15_plt1 <- nov15_deriv |>
+  ggplot(
+    aes(x = animal, y = .derivative)
+  ) +
+  geom_pointrange(
+    aes(ymin = .lower_ci, ymax = .upper_ci)
+  ) +
+  labs(
+    x = "Pig", y = expression(Growth ~ rate ~ (day^{-1}))
+  )
+
+pigs_deriv <- pw_m2 |>
+  derivative_samples(
+    data = nov15_ds |> filter(animal %in% c("2", "13", "17")),
+    n_sim = 10000,
+    eps = 1,
+    type = "central",
+    focal = "day"
+  )
+
+nov15_plt2 <- pigs_deriv |>
+  ggplot(
+    aes(x = animal, y = .derivative)
+  ) +
+  stat_halfeye() +
+  labs(
+    x = "Pig", y = expression(Growth ~ rate ~ (day^{-1}))
+  )
+
+nov15_plt1 + nov15_plt2 +
+  plot_layout(ncol = 2, widths = c(0.5, 0.5)) +
+  plot_annotation(tag_levels = "a", tag_suffix = ")")
 ```
 
 ## Quail hormone experiment {.unnumbered}
@@ -971,6 +1437,8 @@ q_growth_plt <- q_growth |>
 ```{r}
 #| label: quail-model-fits
 #| cache: true
+#| message: false
+#| warning: false
 # bam() fits
 use_discrete <- TRUE
 quail_b1 <- bam(
@@ -1033,13 +1501,49 @@ quail_tw3 <- update(quail_b3, family = tw())
 quail_tw4 <- update(quail_b4, family = tw())
 ```
 
-As assessed by AIC, models containing treatment effects resulted in no improvement in the model fit (@tbl-quail-summary), a result that is consistent with the findings of @Sarraude2020-cw. However, the results of model Q3 are reported below as this model is consistent with the *a priori* assumption of treatment effects, possibly varying by sex, that underlay the original experiment. Using AIC to perform model selection would invalidate subsequent statistical inference we might wish to conduct on the fitted model. @fig-quail-data-plus-fits shows the original data and the estimated growth curves for each individual quail that were obtained from model Q3. The need for quail-specific random smooths is clear; model Q4 had the same model structure as that of Q3, except for the replacement of the quail-specific random smooths with quail-specific intercepts, which resulted in an increase in AIC of over 500 units (@tbl-quail-summary).
+```{r}
+#| label: tbl-quail-summary
+#| tbl-cap: Comparison of models fitted to the quail hormone experimental data set. The model label is shown (see text for the specific model formulations). Effective degrees of freedom (EDF) represents model complexity in terms of the (effective) number of parameters in each model. Akaike's An information criterion (AIC) values, model deviance, and deviance explained as a proportion are also reported.
+#| cache: false
+glance(quail_tw1) |>
+  bind_rows(
+    glance(quail_tw2),
+    glance(quail_tw3),
+    glance(quail_tw4)
+  ) |>
+  select(
+    c("df", "AIC", "deviance")
+  ) |>
+  add_column(
+    "Model" = paste0("Q", 1:4), .before = 1L
+  ) |>
+  add_column(
+    "Deviance expl." = c(
+      1 - (deviance(quail_tw1) / null_deviance(quail_tw1)),
+      1 - (deviance(quail_tw2) / null_deviance(quail_tw2)),
+      1 - (deviance(quail_tw3) / null_deviance(quail_tw3)),
+      1 - (deviance(quail_tw4) / null_deviance(quail_tw4))
+    )
+  ) |>
+  rename(
+    EDF = df,
+    Deviance = deviance
+  ) |>
+  #knitr::kable(caption = NA, digits = 3)
+  tt(digits = 3)
+```
+
+As assessed by AIC, models containing treatment effects resulted in no improvement in the model fit (@tbl-quail-summary), a result that is consistent with the findings of @Sarraude2020-cw. However, the results of model Q3 are reported below as this model is consistent with the *a priori* assumption that treatment effects might be present, possibly varying by sex, which underlay the original experiment. If we were to choose either of models Q1 or Q2 *on the basis of AIC*, we would be engaging in post-selection inference; having used the same data to both fit and test the model, any tests we would wish to conduct on the chosen model would yield anti-conservative *p* values, and standard errors and credible intervals that would be too small or narrow respectively. Furthermore, choosing models Q1 or Q2 would in effect be claiming that some or all treatment effects were exactly equal to 0 in size; this is implausible and also inconsistent with the data we have observed. It is therefore better statistical practice to fit the model containing the effects hypothesised *a priori*, and report the estimated effect sizes of those effects.
+
+@fig-quail-data-plus-fits shows the original data and the estimated growth curves for each individual quail that were obtained from model Q3. The need for quail-specific random smooths is clear enough from the data; model Q4 had the same model structure as that of Q3, except for the replacement of the quail-specific random smooths with quail-specific intercepts, which resulted in an increase in AIC of over 500 units (@tbl-quail-summary).
 
 ```{r}
 #| label: fig-quail-data-plus-fits
-#| fig-cap: Measured body mass (g) for 57 Japanese quail from an experiment on the effects of exposure to the maternal hormone $\text{T}_{4}$, its active metabolite $\text{T}_{3}$, both ($\text{T}_{3}\text{T}_{4}$) or a saline solution control (CO). The data (points) are shown along side the estimated growth curve for each quail obtained using generalized additive model Q3, which are shown by the coloured lines in each panel. The coloured shaded ribbon is the 95% bayesian credible interval around the estimate curve. The data are faceted by treatment and the sex of bird.
+#| fig-cap: Measured body mass (g) for 57 Japanese quail from an experiment on the effects of exposure to the maternal hormone $\text{T}_{4}$, its active metabolite $\text{T}_{3}$, both ($\text{T}_{3}\text{T}_{4}$) or a saline solution control (CO). The data (points) are shown along side the estimated growth curve for each quail obtained using generalized additive model Q3, which are shown by the coloured lines in each panel. The coloured shaded ribbon is the 95% Bayesian credible interval around the estimate curve. The data are faceted by treatment and the sex of bird.
 #| fig-width: 8
 #| fig-height: 4
+#| out-width: 90%
+#| fig-align: center
 quail_lookup <- q_growth |>
   distinct(egg, mother, sex, treat)
 
@@ -1104,44 +1608,12 @@ quail_fv |>
 ```
 
 ```{r}
-#| label: tbl-quail-summary
-#| tbl-cap: "Comparison of models fitted to the quail hormone experimental data set. The model label is shown (see text for the specific model formulations). Effective degrees of freedom represents model complexity in terms of the (effective) number of parameters in each model. Akaike's An information criterion (AIC) values, model deviance, and deviance explained as a proportion are also reported."
-glance(quail_tw1) |>
-  bind_rows(
-    glance(quail_tw2),
-    glance(quail_tw3),
-    glance(quail_tw4)
-  ) |>
-  select(
-    c("df", "AIC", "deviance")
-  ) |>
-  add_column(
-    "Model" = paste0("Q", 1:4), .before = 1L
-  ) |>
-  add_column(
-    "Deviance expl." = c(
-      1 - (deviance(quail_tw1) / null_deviance(quail_tw1)),
-      1 - (deviance(quail_tw2) / null_deviance(quail_tw2)),
-      1 - (deviance(quail_tw3) / null_deviance(quail_tw3)),
-      1 - (deviance(quail_tw4) / null_deviance(quail_tw4))
-    )
-  ) |>
-  rename(
-    EDF = df,
-    Deviance = deviance
-  ) |>
-  knitr::kable(caption = NA, digits = 3)
-```
-
-To focus on the estimated treatment effects, model Q3 was evaluated at 100 evenly-spaced values over the time covariate (the number of evaluation points chosen to obtain a visually smooth representation of the estimated functions), plus all combinations of treatment level and sex. The effects of the quail-specific random smooths and the maternal random effects were excluded from these estimates. This results in estimated treatment effects for the average quial, which, strictly speaking should not be interpretted as population level effects due to the non-identity link function. The resulting estimated effects are shown in @fig-quail-tweedie-treatment-comparisons. While there are clear differences in the growth curves based on sex, there appears to be little qualitative difference in the effects of treatment levels on quail growth.
-
-The statistical summary of model Q3 is shown in @tbl-quail-weight-model-terms. The omnibus tests of the treatment specific deviations, and the treatment by sex deviations from the average curve, both have $p > 0.05$, which further reinforces the previously made observations that the effects of exposure to maternal thyroid hormone, if any, are small relative to the uncertainty in the model itself. The $p$ value for the omnibus test of the quail-specific deviation smooths ($f_{\text{egg}(i)}(\mathtt{day}_i)$) is also greater than 0.05. This is somewhat surprising, given the magnitude of the difference in AIC that is observed when these quail-specific random smooths are replace by a simple random intercept term ($\Delta \text{AIC}$ = `r abs(AIC(quail_tw3) - AIC(quail_tw4)) |> round(3)`). Despite their lacking "statistical significance", removing these terms on the basis of $p$ values would lead to invalid inference.
-
-```{r}
 #| label: fig-quail-tweedie-treatment-comparisons
 #| fig-width: 8
 #| fig-height: 3
-#| fig-cap: Conditional value plots showing the growth rate for an average quail in each of the treatment groups by sex. The panels show the estimated curves for a particular treatment group; saline solution controls (CO), maternal hormone metabolite $\text{T}_{3}$, the maternal hormone $\text{T}_{4}$, and a combination of both $\text{T}_{3}\text{T}_{4}$. The estimated curve for male birds is shown by the solid line, and females the dashed line in each panel. The shaded band around each curve is a 95% bayesian credible interval.
+#| out-width: 90%
+#| fig-align: center
+#| fig-cap: Conditional value plots showing the growth rate for an average quail in each of the treatment groups by sex. The panels show the estimated curves for a particular treatment group; saline solution controls (CO), maternal hormone metabolite $\text{T}_{3}$, the maternal hormone $\text{T}_{4}$, and a combination of both $\text{T}_{3}\text{T}_{4}$. The estimated curve for male birds is shown by the solid line, and females the dashed line in each panel. The shaded band around each curve is a 95% Bayesian credible interval.
 #| cache: false
 
 quail_tw3 |>
@@ -1186,17 +1658,22 @@ quail_tw3 |>
   )
 ```
 
-The largest contribution to the overall EDF of this model (EDF = `r quail_tw3 |> model_edf() |> pull(.edf) |> round(3)`) is from the quail-specific deviation smooths (EDF = `r quail_tw3 |> edf(select = "s(day,egg)") |> pull(.edf) |> round(3)`), although as there are 57 individual animals and the random smooths include random intercepts to acocunt for differences between the average weight of each quail, this is unsurprising. Again, we see the effect of the wiggliness penalty, which has penalised the smooths back to EDF = `r quail_tw3 |> edf(select = "s(day,egg)") |> pull(.edf) |> round(3)` from a maximum of EDF of `r 57*6`.
+To focus on the estimated treatment effects, model Q3 was evaluated at 100 evenly-spaced values over the time covariate (the number of evaluation points was chosen to obtain a visually smooth representation of the estimated functions), plus all combinations of treatment level and sex. The effects of the quail-specific random smooths and the maternal random effects were excluded from these estimates. This results in estimated treatment effects for the average quail, which, strictly speaking should not be interpretted as population level effects due to the non-identity link function. The resulting estimated effects are shown in @fig-quail-tweedie-treatment-comparisons. While there are clear differences in the growth curves based on sex, there appears to be little qualitative difference in the effects of treatment levels on quail growth.
+
+The statistical summary of model Q3 is shown in @tbl-quail-weight-model-terms. The omnibus tests of the treatment specific deviations (row 3; $f_{\text{treat(i)}}(\mathtt{day}_i)$), and the treatment by sex deviations from the average curve (row 5; $f_{\text{treat}(i),\text{sex}(i)}(\mathtt{day}_i)$), both have *p* > 0.05, which further reinforces the previously made observations that the effects of exposure to maternal thyroid hormone, if any, are small relative to the uncertainty in the model itself. The *p* value for the omnibus test of the quail-specific deviation smooths ($f_{\text{egg}(i)}(\mathtt{day}_i)$) is also greater than 0.05. This is somewhat surprising, given the magnitude of the difference in AIC that is observed when these quail-specific random smooths are replace by a simple random intercept term ($\Delta \text{AIC} = \text{`r abs(AIC(quail_tw3) - AIC(quail_tw4)) |> round(3)`}$). Despite not achieving "statistical significance", removing these terms on the basis of *p* values would lead to invalid inference, which is to be avoided.
+
+The largest contribution to the overall EDF of this model (EDF = `r quail_tw3 |> model_edf() |> pull(.edf) |> round(2)`) is from the quail-specific deviation smooths (EDF = `r quail_tw3 |> edf(select = "s(day,egg)") |> pull(.edf) |> round(2)`), although because there are 57 individual animals and the random smooths include random intercepts to acocunt for differences in the average weight of each quail, this is unsurprising. Again, we see the effect of the wiggliness penalty, which has penalised the smooths back to EDF = `r quail_tw3 |> edf(select = "s(day,egg)") |> pull(.edf) |> round(2)` from a maximum EDF of `r 57*6`.
 
 ```{r}
 #| label: tbl-quail-weight-model-terms
-#| tbl-colwidths: [30,25,5,15,15,10]
-#| tbl-cap: Model summary for model Q3 fitted to the quail hormone experimental data set. The model term for comparison with the descriptions in the text and the label reported by the software are both shown for clarity. $k$ is the number of basis functions *per smooth*, EDF is the effective degrees of freedom, a measure of the complexity of each term, F is the test statistic and $p$ the *p* value of the null hypothesis of a flat constant function or functions.
+#| tbl-colwidths: [25,20,6,13,13,13,10]
+#| tbl-cap: Summary for model Q3 fitted to the quail hormone experimental data set. The model term for comparison with the descriptions in the text and the label reported by the software are both shown for clarity. $k$ is the number of basis functions *per smooth*, EDF is the effective degrees of freedom, a measure of the complexity of each term, $\text{EDF}_{\text{Ref.}}$ is the reference degrees of freedom used in the tests, F is the test statistic and $p$ the *p* value of the null hypothesis of a flat constant function or functions. The tests for terms in rows 1--6 are Wald-like tests with appropriate degrees of freedom. The tests of smooth terms (rows 2--6) are described in @Wood2013-fb. The test of the random intercept term (row 7) is adjusted for testing a variance component whose null hypothesis lies on the boundary of the allowable parameter space [@Wood2013-gz].
 
 overview(quail_tw3) |>
   select(-type) |>
   add_column(
     "Model term" = c(
+      "$\\beta_0$",
       "$f(\\mathtt{day})$",
       "$f_{\\text{treat(i)}}(\\mathtt{day}_i)$",
       "$f_{\\text{sex(i)}}(\\mathtt{day}_i)$",
@@ -1210,10 +1687,12 @@ overview(quail_tw3) |>
     "Label" = term,
     `$k$` = k,
     EDF = edf,
+    `$\\text{EDF}_{\\text{Ref.}}$` = ref.edf,
     F = statistic,
     `$p$` = "p.value"
   ) |>
-  knitr::kable(caption = NA, digits = 3)
+  #knitr::kable(caption = NA, digits = 3)
+  tt(digits = 3)
 ```
 
 ```{r}
@@ -1226,14 +1705,14 @@ overview(quail_tw3) |>
 
 # 1. estimate slopes at t = 20
 slp_20 <- slopes(
-  quail_tw3, 
+  quail_tw3,
   newdata = datagrid(day = 20, treat= unique, sex = unique),
   variables = "day", by = c("sex", "treat"), type = "response",
     exclude = c("s(day,egg)", "s(mother)")
 )
 
 slp_20_h <- slopes(
-  quail_tw3, 
+  quail_tw3,
   newdata = datagrid(day = 20, treat = unique, sex = unique),
   variables = "day", by = c("sex", "treat"), type = "response",
   exclude = c("s(day,egg)", "s(mother)"),
@@ -1248,14 +1727,14 @@ hyp_20 <- hypotheses(
 # 2. Estimate means, predictions, among treatment groups at t = 78 days, and
 #.   test, pairwise within sex for treatment differences?
 prd_78 <- predictions(
-  quail_tw3, 
+  quail_tw3,
   newdata = datagrid(day = 78, treat = unique, sex = unique),
   variables = "day", by = c("sex", "treat"), type = "response",
   exclude = c("s(day,egg)", "s(mother)")
 )
 
 prd_78_h <- predictions(
-  quail_tw3, 
+  quail_tw3,
   newdata = datagrid(day = 78, treat = unique, sex = unique),
   variables = "day", by = c("sex", "treat"), type = "response",
   exclude = c("s(day,egg)", "s(mother)"),
@@ -1272,7 +1751,7 @@ To formally assess the differences among treatment effects, pairwise comparisons
 
 ```{r}
 #| label: tbl-hyp-20
-#| tbl-cap: Pairwise comparisons of treatment effects by sex on the slopes of the growth curves at day 20 for an average quail of the indicated sex in the pair of treatments shown. The Hypothesis column lists the specific pairwise comparison, Diff. is the estimated difference in the slope of the growth curves compared, SE its standard error. Z is the Wald test statistic, $p$ its *p* value, and associated endpoints of a bayesian 95% credible interval on the estimated difference of slopes.
+#| tbl-cap: Pairwise comparisons of treatment effects by sex on the slopes of the growth curves at day 20 for an average quail of the indicated sex in the pair of treatments shown. The Hypothesis column lists the specific pairwise comparison, Diff. is the estimated difference in the slope of the growth curves compared, SE its standard error. Z is the Wald test statistic, $p$ its *p* value, and associated endpoints of a Bayesian 95% credible interval on the estimated difference of slopes.
 #| tbl-colwidths: [15,30,10,10,10,5,10,10]
 
 hyp_20 |>
@@ -1301,21 +1780,22 @@ hyp_20 |>
     SE = "std.error",
     Z = statistic,
     "$p$" = p.value,
-    "2.5%" = conf.low,
-    "97.5%" = conf.high
+    "2.5\\%" = conf.low,
+    "97.5\\%" = conf.high
   ) |>
   relocate(
     Sex,
     .before = 1L
   ) |>
-  knitr::kable(caption = NA, digits = 3)
+  #knitr::kable(caption = NA, digits = 3)
+  tt(digits = 3) |> format_tt(escape = FALSE)
 ```
 
 Finally, pairwise comparisons of quail weight at the end of the experiment (day 78) among treatment levels within sex were used to examine differences in estimated weight of quail due to exposure to maternal thyroid hormones. The results of these comparisons are shown in @tbl-hyp-78. The largest observed difference (~10.1 g) in weight of an average quail was between the $\text{T}_4$ hormone treatment and controls in female quail. This represents approximately a 5% decrease in the weight of an average female quail when exposed to the $\text{T}_4$ hormone compared with the untreated controls. Yet, given the uncertainty in the estimates of the model coefficients, the 95% credible interval includes 0 for this, and all other, comparisons.
 
 ```{r}
 #| label: tbl-hyp-78
-#| tbl-cap: Pairwise comparisons of treatment effects by sex on the estimated mean of the quail growth curves at day 78 for an average quail of the indicated sex in each pair of treatments. The Hypothesis column lists the specific pairwise comparison, Diff. is the estimated difference of mean body mass (g) of the growth curves compared, SE its standard error. Z is the Wald test statistic, $p$ its *p* value, and associated endpoints of a bayesian 95% credible interval on the estimated difference of means.
+#| tbl-cap: Pairwise comparisons of treatment effects by sex on the estimated mean of the quail growth curves at day 78 for an average quail of the indicated sex in each pair of treatments. The Hypothesis column lists the specific pairwise comparison, Diff. is the estimated difference of mean body mass (g) of the growth curves compared, SE its standard error. Z is the Wald test statistic, $p$ its *p* value, and associated endpoints of a Bayesian 95% credible interval on the estimated difference of means.
 #| tbl-colwidths: [10,25,14,8,10,2,15,14]
 
 hyp_78 |>
@@ -1353,41 +1833,42 @@ hyp_78 |>
     SE = "std.error",
     Z = statistic,
     "$p$" = p.value,
-    "2.5%" = conf.low,
-    "97.5%" = conf.high
+    "2.5\\%" = conf.low,
+    "97.5\\%" = conf.high
   ) |>
   relocate(
     Sex,
     .before = 1L
   ) |>
-  knitr::kable(caption = NA, digits = 3)
+  #knitr::kable(caption = NA, digits = 3)
+  tt(digits = 3) |> format_tt(escape = FALSE)
 ```
 
-# Author' Points of View
+# Author's Points of View
 
-The results presented above, clearly demonstrate the utility of GAMs for modelling the kinds of data commonly encountered in research involving animals. GAMs are often viewed unfavourably as being subjective, requiring the user to specify how complex they want the estimated smooth functions to be, data hungry, and more of a data visualisation tool ill-suited to formal statistical inference. These views, while perhaps valid in the case of the subjectivity critique, are largely out-dated with modern GAMs as I have presented above. The subjectivity critique has been addressed through developments in automated smoothness selection. None of the data sets analysed here are especially large, certainly not given today's standards, and much research has been done [e.g., @Li2020-ch] and continues to be done to adapt the algorithms to ever higher dimensional problems. The `bam()` function in the *mgcv* package, for example, can handle data on the order of millions of rows, with tens of thousands of model parameters, given sufficient availablity of computer memory.
+The results presented above demonstrate the utility of GAMs for modelling the kinds of data commonly encountered in research involving animals. GAMs are often viewed unfavourably as being subjective --- requiring the user to specify how complex they want the estimated smooth functions to be --- and data hungry, and more of a data visualisation tool than one suited to formal statistical inference. These views are largely out-dated with respect to the modern approach to GAMs described here. The subjectivity critique has been addressed through developments in automated smoothness selection. None of the data sets analysed here are especially large by today's standards, and where data sets are much larger, significant research effort has been [e.g., @Li2020-ch] and continues to be expended to adapt the algorithms to ever higher dimensional problems. The `bam()` function in the *mgcv* package, for example, can handle data on the order of millions of rows, with tens of thousands of model parameters, given sufficient availability of computer memory.
 
-As demonstrated in the quail maternal hormone example, formal statistical inference is entirely feasible. If we ignore the selection of smoothness parameters, the models described here are little more than generalized linear (mixed) models (GL(M)Ms) once the basis expansions of covariates have been performed. Modern software tools like the *marginaleffects* package for R allow a consistent interface to statistical inference across many disparate statistical models, and GAMs are no different in this regard.
+As demonstrated in the quail maternal hormone example, formal statistical inference is entirely feasible. If we ignore the selection of smoothness parameters, the models described here are little more than generalized linear (mixed) models (GL(M)Ms) once the basis expansions of covariates have been performed. Modern software tools like the *marginaleffects* package for R allow a consistent interface to statistical inference across many disparate statistical models, and GAMs are no different in this regard. Posterior sampling can also be applied to GAMs to provide point estimates and uncertainties on any quantity of interest that can be computed using only the model predictions. This sampling-based approach to inference is incredibly powerful and extremely flexible and complements more standard inference such as the comparisons of contrasts used in the quail example.
 
-The distinct advantage of GAMs over GL(M)Ms is their ability to learn the shapes of nonlinear relationships between covariates and the repsonse from the data themselves. This relieves the analyst from having to force data to fit a particular theoretical model, unless they have a good justification to use that model of course. GAMs also avoid the model selection problems inherent to modelling with polynomial basis expansions (e.g. $x + x^2 + x^3 + \cdots + x^p$).
+The distinct advantage of GAMs over GL(M)Ms is their ability to learn the shapes of nonlinear relationships between covariates and the response from the data themselves. This relieves the analyst from having to force data to fit a particular theoretical model, unless they have a good justification via domain knowledge to use that model. GAMs also avoid the model selection problems and erratic estimates inherent to modelling with polynomial basis expansions.
 
-The main disadvantage of GAMs is that they are more complex to fit than GL(M)Ms; the analyst has some additional data modelling choices to make when using GAMs. The main choice is the number of basis functions, $K$, that should be used by each smooth in the model. The general advice here is for the analyst to imagine the largest amount of wiggliness that they would expect and then set $k$ a little larger than this. Of course, the novice user of GAMs will lack the experience required to do this easily, but for the sorts of data problems exemplified above, we would not expect highly complex smooth functions, and the default of $k$ = 10 for univariate smooths in *mgcv* is usually sufficient for many problems. The key requirement is that the initial number of basis functions used should be large enough such that the span of functions representable with that basis will contain the true but unknown function or a close approximation to it. The basis dimension must be checked of course, and this adds another step to the model appraisal or checking procedure. With *mgcv* for example, the `k.check()` function provides a test for sufficiency of the basis size used to fit the model [@Pya2016-rk].
+The main disadvantage of GAMs is that they are more complex to fit than GL(M)Ms and the analyst has some additional data modelling choices to make. The main choice is the number of basis functions, $K$, that should be used by each smooth in the model. The general advice here is for the analyst to imagine the largest amount of wiggliness that they would expect and then set $K$ a little larger than this. Of course, the novice user of GAMs will lack the experience required to do this easily, but for the sorts of data problems exemplified above, we would not expect highly complex smooth functions, and the default of $K$ = 10 for univariate smooths in *mgcv* is usually sufficient for many problems. The key requirement is that the initial number of basis functions used should be large enough such that the span of functions representable with that basis will contain the true but unknown function or a close approximation to it. The basis dimension must be checked of course, and this adds another step to the model appraisal or checking procedure. With *mgcv* for example, the `k.check()` function provides a test for sufficiency of the basis size used to fit the model [@Pya2016-rk].
 
-A further disadvantage is that statistical inference is somewhat more approximate that with GL(M)Ms. While GAMs share with GL(M)Ms the property of having asymptotically correct *p* values, the *p* values for smooths are more approximate than for terms in a GL(M)M because the current theory on which these tests are based does not account for the selection of smoothing parameters; for the purposes of the tests, the smoothing parameters are treated as being fixed and known, but instead they are estimated from the data [@Wood2013-fb]. While there has been some progress in adapting the theory to include this additional source of uncertainty [e.g., @Wood2016-fx], as yet this has not been used to correct the *p* values of tests of smooths.
+A further disadvantage is that statistical inference is somewhat more approximate than with GL(M)Ms. While GAMs share with GL(M)Ms the property of having asymptotically correct *p* values, the *p* values for smooths are more approximate than for terms in a GL(M)M because the current theory on which these tests are based does not account for the selection of smoothing parameters; for the purposes of the tests, the smoothing parameters are treated as being fixed and known, but instead they are estimated from the data [@Wood2013-fb]. While there has been some progress in adapting the theory to include this additional source of uncertainty [e.g., @Wood2016-fx], as yet this has not been used to correct the *p* values of tests of smooths. That said, we should avoid making modelling decisions on the basis of *p* values, to this additional approximation should not pose a problem in practice.
 
 Finally, GAMs can require more substantial amounts of computing resources to fit than GL(M)Ms once data sets get above tens of thousand observations or where models include several or complex random effect terms, using the algorithms provided by *mgcv*. The main requirement is computer memory, although the `bam()` function can help with this using algorithmic improvements from @Li2020-ch. The examples above were all run on an Apple M1 Pro MacBook Pro with 32GB of RAM, and the entire analysis including the generations of figures takes only a few minutes.
 
-GAMs are a very broad and general class of models. In the case of the pig growth data, several animals exhibited visibly more variation in their weight measurements than the majority of the animals in the data. Such heteroscedasticity (non-constant variance) can be modelled using distributional GAMs (or Generalized additive models for location, scale, shape or GAMLSS) [e.g. @Rigby2005-nl; @Kneib2021-zb; @Klein2024-im], which include linear predictors for all of the parameters of a distribution, or centile or quantile models [e.g., @Nakamura2022-nf]. In the examples above, the additional parameters (scale in the case of the Gamma, or the Tweedie power parameter) were estimated as constants for the entire data set. A distributional GAM would allow those parameters to potentially vary with individual animals, or as as smooth functions of the covariates, just as was done for the mean of the distribution in this study.
+GAMs are a very broad and general class of models, and many extensions exist in the literature. In the case of the pig growth data, several animals exhibited visibly more variation in their weight measurements than the majority of the animals in the data. Such heteroscedasticity (non-constant variance) can be modelled using distributional GAMs (or Generalized additive models for location, scale, shape or GAMLSS) [e.g. @Rigby2005-nl; @Kneib2021-zb; @Klein2024-im], which include linear predictors for all of the parameters of a distribution, or centile or quantile models [e.g., @Nakamura2022-nf]. In the examples above, the additional parameters (scale in the case of the Gamma, or the Tweedie power parameter) were estimated as constants for the entire data set. A distributional GAM would allow those parameters to potentially vary with individual animals, or as as smooth functions of the covariates, just as was done for the mean of the distribution in this study.
 
 In conclusion, GAMs are a modern, flexible, and highly usable statistical model that is amenable to many research problems in animal science, and deserve a place in the statistical toolbox.
 
 # Ethics approval
 
-Not applicable. See the original sources of the data used for ethical approvement.
+Not applicable. See the original sources of the data used for ethical approval.
 
 # Declaration of Generative AI and AI-assisted technologies in the writing process
 
-The author did not use any artifical intelligence technologies in the writing process.
+The author did not use any artificial intelligence technologies in the writing process.
 
 # Author ORCIDs
 
@@ -1395,7 +1876,7 @@ The author did not use any artifical intelligence technologies in the writing pr
 
 # Author contributions
 
-GLS: Conceptualization, Methodology, Software, Formal analysis, Writing, Visulaization.
+GLS: Conceptualization, Methodology, Software, Formal analysis, Writing, Visualization.
 
 # Declaration of interest
 
