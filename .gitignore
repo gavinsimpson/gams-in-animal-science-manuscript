@@ -50,3 +50,10 @@ rsconnect/
 
 # macos rubbish
 .DS_Store
+
+# quarto stuff
+.luarc.json
+
+# skip folders I don't want in the repo
+/raw-analysis/
+/arxiv/
