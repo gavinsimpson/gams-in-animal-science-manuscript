@@ -2,7 +2,7 @@
 
 ## License
 
-The R code in the repo is released under an MIT license. The manuscript (`manuscript.qmd` and `manuscript.pdf`) and preprint (`preprint-version.qmd` and `preprint-version.pdf`) and the figures in the `manuscript_files/` and `preprint-version_files/` folders are made available under a the Creative Commons By-Attribution v4.0 International license.
+The R code in the repo is released under an MIT license. The manuscript (`manuscript.qmd` and `manuscript.pdf`) and preprint (`preprint-version.qmd` and `preprint-version.pdf`) and the figures in the `manuscript_files/` and `preprint-version_files/` folders are made available under a the [Creative Commons By-Attribution v4.0 International](https://creativecommons.org/licenses/by/4.0/legalcode.en) license (CC-BY).
 
 ## Description
 
