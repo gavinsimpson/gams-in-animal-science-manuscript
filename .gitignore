@@ -57,3 +57,6 @@ rsconnect/
 # skip folders I don't want in the repo
 /raw-analysis/
 /arxiv/
+
+# skip vscode local settings
+.vscode/
